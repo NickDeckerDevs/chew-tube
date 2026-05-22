@@ -1,4 +1,9 @@
 /*
+5/22/2026 - nick decker | email trim
+CHANGED
+- Removed short summary, one-liner, and key takeaways from email — stored in DB but not rendered
+- Email now shows: thumbnail → title → channel → verdict + reason only
+
 5/22/2026 - nick decker | phase development
 ADDED
 - `sendDigestEmail(videos, to)` — builds and sends an HTML digest email via Resend SDK
@@ -76,14 +81,8 @@ function buildVideoSection(video: StoredVideo): string {
   const verdictColor = video.worthWatching ? "#2e7d32" : "#c62828";
   const verdictText = video.worthWatching ? "Worth watching" : "Skip it";
   const verdictIcon = video.worthWatching ? "✓" : "✗";
-  const takeaways = video.keyTakeaways
-    .map((t) => `<li style="margin-bottom: 6px;">${md(t)}</li>`)
-    .join("\n    ");
   const thumbnail = video.thumbnailUrl
     ? `<img src="${video.thumbnailUrl}" width="320" alt="" style="width:100%;max-width:320px;height:auto;display:block;margin-bottom:12px;border-radius:4px;">`
-    : "";
-  const shortSummaryHtml = video.shortSummary
-    ? `<div style="margin: 0 0 10px 0; line-height: 1.6;">${md(video.shortSummary)}</div>`
     : "";
 
   return `<div style="margin-bottom: 28px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -92,15 +91,10 @@ function buildVideoSection(video: StoredVideo): string {
     <a href="${url}" style="color: #0066cc; text-decoration: none;">${esc(video.title)}</a>
   </h2>
   <p style="color: #666; font-size: 13px; margin: 0 0 8px 0;">${esc(video.channel)}</p>
-  <p style="margin: 0 0 12px 0; font-size: 14px;">
+  <p style="margin: 0; font-size: 14px;">
     <span style="color: ${verdictColor}; font-weight: bold;">${verdictIcon} ${verdictText}</span>
     &mdash; ${md(video.worthWatchingReason)}
   </p>
-  ${shortSummaryHtml}
-  <div style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${md(video.oneLiner)}</div>
-  <ul style="margin: 0 0 0 0; padding-left: 20px; line-height: 1.5;">
-    ${takeaways}
-  </ul>
 </div>`;
 }
 
