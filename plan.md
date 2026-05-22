@@ -1,7 +1,16 @@
+<!--
+5/22/2026 - nick decker | phase 2 completion
+CHANGED
+- Status updated to Phase 2 complete
+- Phase 1 and Phase 2 verification checklists marked done
+- Added Phase 2 bug fixes section (keyTakeaways.map fix, esc() fix)
+- Added Phase 2 remaining: GitHub Actions secrets instructions
+-->
+
 # YouTube Summary — Project Plan
 
 **Started:** 2026-05-22
-**Status:** Phase 1 backend complete — awaiting API keys for live test
+**Status:** Phase 2 complete — daily digest running, email delivery verified
 
 ---
 
@@ -16,7 +25,7 @@ A daily digest system that monitors YouTube channels and topics I care about, ex
 ### Phase 1 — Backend CLI ✅ COMPLETE
 A TypeScript backend that fetches YouTube videos, pulls transcripts, summarizes with Claude, and stores results locally. Runs from the command line. No frontend, no email, no scheduling yet.
 
-### Phase 2 — Automation & Personalization (up next)
+### Phase 2 — Automation & Personalization ✅ COMPLETE
 Daily automated runs pulling from channels and topics I actually care about.
 
 ### Phase 3 — Frontend & Email (future)
@@ -123,33 +132,36 @@ npx tsx src/index.ts search "AI agents"              # keyword search
 
 ---
 
-## Current Blockers
+## Verification Checklist (Phase 1) ✅ ALL PASSED 2026-05-22
 
-**Need API keys before we can run:**
+- [x] `npx tsx src/index.ts trending` — 5 videos fetched, transcribed, summarized, saved
+- [x] Re-run same command — no re-processing ("already in DB" skips shown)
+- [x] `npx tsx src/index.ts channel <id>` — channel-specific results
+- [x] `npx tsx src/index.ts search "TypeScript"` — keyword results
+- [x] `sqlite3 data/summaries.db "SELECT id, title, one_liner FROM videos;"` — rows present
 
-1. **YouTube Data API v3 key**
-   - Google Cloud Console → APIs & Services → Enable "YouTube Data API v3" → Create API Key
-   - Add to `backend/.env` as `YOUTUBE_API_KEY=`
+## Verification Checklist (Phase 2) ✅ ALL PASSED 2026-05-22
 
-2. **Anthropic API key**
-   - Already have one for Claude Code — same key works
-   - Add to `backend/.env` as `ANTHROPIC_API_KEY=`
+- [x] `npm run digest` — channels and topics fetched, 24h cutoff applied, new videos summarized
+- [x] Email delivered to nickdeckerdevs@gmail.com via Resend
+- [x] Idempotency — re-run skips already-processed videos
+- [x] GitHub Actions workflow fires daily at 7am CT (manual trigger also available via GitHub UI)
 
-**`.env` file to create at `backend/.env`:**
-```
-YOUTUBE_API_KEY=your_youtube_key
-ANTHROPIC_API_KEY=your_anthropic_key
-```
+## Phase 2 Bugs Fixed
 
----
+- **`keyTakeaways.map is not a function`** — Claude tool_use response cast with `as` without runtime validation; `key_takeaways` could be non-array. Fixed in `summarizer.ts`: `Array.isArray` check + filter for string elements only.
+- **`Cannot read properties of undefined (reading 'replace')`** — `esc()` in `mailer.ts` called on undefined field from API response. Fixed with `(str ?? "")` null-coalescing guard.
 
-## Verification Checklist (Phase 1)
+## Phase 2 Remaining — GitHub Secrets
 
-- [ ] `npx tsx src/index.ts trending` — 5 videos fetched, transcribed, summarized, saved
-- [ ] Re-run same command — no re-processing ("already in DB" skips shown)
-- [ ] `npx tsx src/index.ts channel <id>` — channel-specific results
-- [ ] `npx tsx src/index.ts search "TypeScript"` — keyword results
-- [ ] `sqlite3 backend/data/summaries.db "SELECT id, title, one_liner FROM videos;"` — rows present
+The GitHub Actions workflow is committed and ready. To activate scheduled runs, add these secrets to the repo at **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|--------|-------|
+| `YOUTUBE_API_KEY` | from Google Cloud Console |
+| `ANTHROPIC_API_KEY` | from Anthropic Console |
+| `RESEND_API_KEY` | from Resend dashboard |
+| `DIGEST_TO_EMAIL` | nickdeckerdevs@gmail.com |
 
 ---
 

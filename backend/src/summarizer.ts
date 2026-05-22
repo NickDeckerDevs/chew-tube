@@ -1,3 +1,9 @@
+/*
+5/22/2026 - nick decker | phase 2 bug fix
+FIXED
+- Validate `key_takeaways` is an array at the API boundary in `callSummaryTool` — Claude's tool_use response is cast with `as`, so a malformed response could silently produce `undefined`, causing `keyTakeaways.map is not a function` in the mailer
+*/
+
 import Anthropic from "@anthropic-ai/sdk";
 import type { Summary } from "./db.js";
 import { splitTranscript } from "./transcript.js";
@@ -72,7 +78,9 @@ async function callSummaryTool(
 
   return {
     oneLiner: input.one_liner,
-    keyTakeaways: input.key_takeaways,
+    keyTakeaways: Array.isArray(input.key_takeaways)
+      ? (input.key_takeaways as unknown[]).filter((t): t is string => typeof t === "string")
+      : [],
     worthWatching: input.worth_watching,
     worthWatchingReason: input.worth_watching_reason,
   };

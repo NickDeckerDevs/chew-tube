@@ -4,6 +4,10 @@ ADDED
 - `sendDigestEmail(videos, to)` — builds and sends an HTML digest email via Resend SDK
 - `buildHtml` and `buildVideoSection` helpers for per-video sections: title link, channel, one-liner, takeaways, worth-watching verdict
 - `esc()` HTML entity escape helper for all user-generated content
+
+5/22/2026 - nick decker | phase 2 bug fix
+FIXED
+- `esc()` now safely handles undefined/null at runtime — Claude API responses can return unexpected non-string values despite TypeScript types
 */
 
 import { Resend } from "resend";
@@ -75,7 +79,7 @@ function buildVideoSection(video: StoredVideo): string {
 }
 
 function esc(str: string): string {
-  return str
+  return (str ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
