@@ -41,7 +41,7 @@ const SUMMARY_TOOL: Anthropic.Tool = {
       },
       short_summary: {
         type: "string",
-        description: "A 2-3 sentence summary of the video suitable for a digest preview. More detail than one_liner but still concise.",
+        description: "A 2-3 sentence plain prose summary suitable for a digest email preview. No markdown, no headers, no bullet points.",
       },
     },
     required: [

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "digest": "tsx src/digest.ts",
-    "test-email": "tsx src/test-email.ts"
+    "test-email": "tsx src/test-email.ts",
+    "backfill": "tsx src/backfill.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

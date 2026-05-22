@@ -92,8 +92,19 @@ function buildVideoSection(video: StoredVideo): string {
 </div>`;
 }
 
-function esc(str: string): string {
+function decodeHtml(str: string): string {
   return (str ?? "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&apos;/g, "'");
+}
+
+function esc(str: string): string {
+  return decodeHtml(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
