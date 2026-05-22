@@ -26,7 +26,7 @@ import {
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import { isAlreadySummarized, saveVideo, getDbStats } from "./db.js";
-import type { VideoMeta } from "./db.js";
+import type { VideoMeta, Summary } from "./db.js";
 
 const ANSI = {
   bold: "\x1b[1m",
@@ -109,13 +109,7 @@ async function fetchVideos(opts: ReturnType<typeof parseArgs>): Promise<VideoMet
   return [];
 }
 
-function printSummary(video: VideoMeta, summary: {
-  oneLiner: string;
-  shortSummary: string;
-  keyTakeaways: string[];
-  worthWatching: boolean;
-  worthWatchingReason: string;
-}): void {
+function printSummary(video: VideoMeta, summary: Summary): void {
   const verdict = summary.worthWatching
     ? `${ANSI.green}✓ Worth watching${ANSI.reset}`
     : `${ANSI.yellow}✗ Skip it${ANSI.reset}`;

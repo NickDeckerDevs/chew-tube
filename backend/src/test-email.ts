@@ -4,11 +4,16 @@ ADDED
 - Test script: pulls 5 random videos from the DB and sends a digest email
 - Used to verify email template changes without waiting for new videos to be published
 - Run via `npm run test-email`
+
+5/22/2026 - nick decker | refactor
+CHANGED
+- Error handling via `runScript()` from utils.ts
 */
 
 import "dotenv/config";
 import { getRandomVideos } from "./db.js";
 import { sendDigestEmail } from "./mailer.js";
+import { runScript } from "./utils.js";
 
 async function main(): Promise<void> {
   const toEmail = process.env.DIGEST_TO_EMAIL;
@@ -25,7 +30,4 @@ async function main(): Promise<void> {
   console.log("Done.");
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err.message ?? err);
-  process.exit(1);
-});
+runScript(main);

@@ -7,13 +7,17 @@ FIXED
 ADDED
 - `short_summary` field to the Claude tool schema — 2-3 sentence digest preview generated alongside the existing summary
 - `shortSummary` returned in the `Summary` object and passed through to DB storage
+
+5/22/2026 - nick decker | refactor
+CHANGED
+- `MODEL` constant replaced by `HAIKU_MODEL` imported from utils.ts
+- `getClient()` replaced by `getAnthropicClient()` imported from utils.ts
 */
 
-import Anthropic from "@anthropic-ai/sdk";
 import type { Summary } from "./db.js";
 import { splitTranscript } from "./transcript.js";
-
-const MODEL = "claude-haiku-4-5-20251001";
+import { HAIKU_MODEL, getAnthropicClient } from "./utils.js";
+import type Anthropic from "@anthropic-ai/sdk";
 
 const SUMMARY_TOOL: Anthropic.Tool = {
   name: "submit_summary",
@@ -54,19 +58,13 @@ const SUMMARY_TOOL: Anthropic.Tool = {
   },
 };
 
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set in .env");
-  return new Anthropic({ apiKey });
-}
-
 async function callSummaryTool(
   client: Anthropic,
   systemPrompt: string,
   userMessage: string
 ): Promise<Summary> {
   const response = await client.messages.create({
-    model: MODEL,
+    model: HAIKU_MODEL,
     max_tokens: 1024,
     system: systemPrompt,
     tools: [SUMMARY_TOOL],
@@ -106,7 +104,7 @@ async function summarizeChunks(
   const chunkSummaries: string[] = [];
   for (let i = 0; i < chunks.length; i++) {
     const res = await client.messages.create({
-      model: MODEL,
+      model: HAIKU_MODEL,
       max_tokens: 512,
       messages: [
         {
@@ -134,7 +132,7 @@ export async function summarize(
   transcript: string,
   chunked: boolean
 ): Promise<Summary> {
-  const client = getClient();
+  const client = getAnthropicClient();
 
   if (chunked) {
     const chunks = splitTranscript(transcript);

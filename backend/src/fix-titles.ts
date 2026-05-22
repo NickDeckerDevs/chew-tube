@@ -5,11 +5,15 @@ ADDED
 - Uses `updateVideoColumn()` from db.ts and `decodeHtml()` from utils.ts
 - Safe to re-run — only touches rows where entities are detected
 - Run via `npm run fix-titles`
+
+5/22/2026 - nick decker | refactor
+CHANGED
+- Error handling via `runScript()` from utils.ts
 */
 
 import "dotenv/config";
 import { listVideos, updateVideoColumn } from "./db.js";
-import { decodeHtml } from "./utils.js";
+import { decodeHtml, runScript } from "./utils.js";
 
 const HTML_ENTITY_RE = /&(?:#\d+|#x[\da-fA-F]+|[a-zA-Z]+);/;
 
@@ -42,4 +46,4 @@ function main(): void {
   }
 }
 
-main();
+runScript(main);

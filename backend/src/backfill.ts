@@ -5,29 +5,24 @@ ADDED
 - Thumbnails: batch-fetches up to 50 IDs at a time via YouTube `videos.list`
 - Short summaries: generates 2-3 sentences from stored `one_liner` + `takeaways` via Claude Haiku
 - Run once via `npm run backfill` — safe to re-run (only touches NULL rows)
+
+5/22/2026 - nick decker | refactor
+CHANGED
+- Removed local DB setup and duplicate migration — now uses `getDb()` from db.ts
+- Removed local YouTube client — now uses `getYouTube()` from youtube.ts
+- Removed local Anthropic client — now uses `getAnthropicClient()` from utils.ts
+- Removed hardcoded model string — now uses `HAIKU_MODEL` from utils.ts
+- Uses `updateVideoColumn()` from db.ts for all UPDATE operations
+- Error handling via `runScript()` from utils.ts
 */
 
 import "dotenv/config";
-import { youtube } from "@googleapis/youtube";
-import Anthropic from "@anthropic-ai/sdk";
-import Database from "better-sqlite3";
-import path from "path";
-import { fileURLToPath } from "url";
-import { decodeHtml } from "./utils.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "../../data/summaries.db");
-const db = new Database(DB_PATH);
-for (const stmt of [
-  "ALTER TABLE videos ADD COLUMN thumbnail_url TEXT",
-  "ALTER TABLE videos ADD COLUMN short_summary TEXT",
-]) {
-  try { db.exec(stmt); } catch {}
-}
+import { getDb, updateVideoColumn } from "./db.js";
+import { getYouTube } from "./youtube.js";
+import { getAnthropicClient, HAIKU_MODEL, runScript } from "./utils.js";
 
 async function backfillThumbnails(): Promise<void> {
-  const yt = youtube({ version: "v3", auth: process.env.YOUTUBE_API_KEY! });
-  const rows = db.prepare(
+  const rows = getDb().prepare(
     "SELECT id FROM videos WHERE thumbnail_url IS NULL"
   ).all() as { id: string }[];
 
@@ -38,6 +33,7 @@ async function backfillThumbnails(): Promise<void> {
 
   console.log(`Thumbnails: backfilling ${rows.length} rows...`);
   let updated = 0;
+  const yt = getYouTube();
 
   for (let i = 0; i < rows.length; i += 50) {
     const batch = rows.slice(i, i + 50).map((r) => r.id);
@@ -45,7 +41,7 @@ async function backfillThumbnails(): Promise<void> {
     for (const item of res.data.items ?? []) {
       const url = item.snippet?.thumbnails?.medium?.url;
       if (url && item.id) {
-        db.prepare("UPDATE videos SET thumbnail_url = ? WHERE id = ?").run(url, item.id);
+        updateVideoColumn(item.id, "thumbnail_url", url);
         updated++;
       }
     }
@@ -55,8 +51,7 @@ async function backfillThumbnails(): Promise<void> {
 }
 
 async function backfillShortSummaries(): Promise<void> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
-  const rows = db.prepare(
+  const rows = getDb().prepare(
     "SELECT id, title, one_liner, takeaways FROM videos WHERE short_summary IS NULL OR short_summary = ''"
   ).all() as { id: string; title: string; one_liner: string; takeaways: string }[];
 
@@ -66,11 +61,12 @@ async function backfillShortSummaries(): Promise<void> {
   }
 
   console.log(`Short summaries: backfilling ${rows.length} rows...`);
+  const client = getAnthropicClient();
 
   for (const row of rows) {
     const takeaways = JSON.parse(row.takeaways) as string[];
     const res = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: HAIKU_MODEL,
       max_tokens: 256,
       messages: [{
         role: "user",
@@ -85,7 +81,7 @@ ${takeaways.map((t) => `- ${t}`).join("\n")}`,
 
     const text = (res.content.find((b) => b.type === "text") as { text: string } | undefined)?.text ?? "";
     if (text.trim()) {
-      db.prepare("UPDATE videos SET short_summary = ? WHERE id = ?").run(text.trim(), row.id);
+      updateVideoColumn(row.id, "short_summary", text.trim());
     }
     process.stdout.write(".");
   }
@@ -97,10 +93,6 @@ async function main(): Promise<void> {
   await backfillThumbnails();
   await backfillShortSummaries();
   console.log("Backfill complete.");
-  db.close();
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err.message ?? err);
-  process.exit(1);
-});
+runScript(main);

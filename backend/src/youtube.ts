@@ -13,13 +13,17 @@ ADDED
 
 CHANGED
 - All `itemToMeta`, `searchItemToMeta`, and `getPlaylistVideos` map functions now run `decodeHtml()` on title, channel, and description, and capture `thumbnailUrl`
+
+5/22/2026 - nick decker | refactor
+CHANGED
+- `getYouTube()` exported so backfill.ts can reuse it instead of instantiating its own YouTube client
 */
 
 import { youtube } from "@googleapis/youtube";
 import type { VideoMeta } from "./db.js";
 import { decodeHtml } from "./utils.js";
 
-function getYouTube() {
+export function getYouTube() {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) throw new Error("YOUTUBE_API_KEY is not set in .env");
   return youtube({ version: "v3", auth: apiKey });
@@ -42,8 +46,10 @@ export async function getCategories(
 export async function resolveHandle(handle: string): Promise<string | null> {
   const yt = getYouTube();
   const h = handle.startsWith("@") ? handle.slice(1) : handle;
-  const res = await yt.channels.list({ part: ["id"], forHandle: h });
-  return res.data.items?.[0]?.id ?? null;
+  // forHandle is valid at runtime but missing from the googleapis type definitions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const res = await yt.channels.list({ part: ["id"], forHandle: h } as any);
+  return (res as any).data?.items?.[0]?.id ?? null;
 }
 
 export function extractPlaylistId(input: string): string {

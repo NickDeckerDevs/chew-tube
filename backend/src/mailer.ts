@@ -20,6 +20,10 @@ CHANGED
 - `decodeHtml` moved to shared `utils.ts`, imported from there
 - `esc()` used only for title/channel (plain strings that should never have markdown)
 - `md()` replaces `esc()` for all prose fields (shortSummary, oneLiner, worthWatchingReason, takeaway items) — converts markdown to email-safe HTML using `marked` with a custom renderer that inlines styles on headings
+
+5/22/2026 - nick decker | refactor + template update
+CHANGED
+- Verdict (skip/watch + reason) moved to appear immediately after title and channel, before short summary and detailed content
 */
 
 import { marked } from "marked";
@@ -87,16 +91,16 @@ function buildVideoSection(video: StoredVideo): string {
   <h2 style="margin: 0 0 4px 0; font-size: 17px; line-height: 1.3;">
     <a href="${url}" style="color: #0066cc; text-decoration: none;">${esc(video.title)}</a>
   </h2>
-  <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">${esc(video.channel)}</p>
-  ${shortSummaryHtml}
-  <div style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${md(video.oneLiner)}</div>
-  <ul style="margin: 0 0 14px 0; padding-left: 20px; line-height: 1.5;">
-    ${takeaways}
-  </ul>
-  <p style="margin: 0; font-size: 14px;">
+  <p style="color: #666; font-size: 13px; margin: 0 0 8px 0;">${esc(video.channel)}</p>
+  <p style="margin: 0 0 12px 0; font-size: 14px;">
     <span style="color: ${verdictColor}; font-weight: bold;">${verdictIcon} ${verdictText}</span>
     &mdash; ${md(video.worthWatchingReason)}
   </p>
+  ${shortSummaryHtml}
+  <div style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${md(video.oneLiner)}</div>
+  <ul style="margin: 0 0 0 0; padding-left: 20px; line-height: 1.5;">
+    ${takeaways}
+  </ul>
 </div>`;
 }
 

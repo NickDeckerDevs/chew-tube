@@ -20,6 +20,13 @@ CHANGED
 ADDED
 - `UPDATEABLE_COLUMNS` const list — exhaustive set of columns that may be updated after insert
 - `updateVideoColumn(id, column, value)` — type-safe single-column UPDATE; column name validated against the allowlist to prevent SQL injection
+
+5/22/2026 - nick decker | refactor
+ADDED
+- `mapRowToVideo(r)` — private helper extracting the repeated row→StoredVideo mapping from `getRandomVideos` and `listVideos`
+
+CHANGED
+- `getDb()` is now exported so backfill.ts can reuse the connection + migration instead of duplicating them
 */
 
 import Database from "better-sqlite3";
@@ -55,7 +62,7 @@ export type StoredVideo = VideoMeta &
 
 let _db: Database.Database | null = null;
 
-function getDb(): Database.Database {
+export function getDb(): Database.Database {
   if (_db) return _db;
   _db = new Database(DB_PATH);
   _db.exec(`
@@ -116,12 +123,8 @@ export function getDbStats(): { path: string; rowCount: number } {
   return { path: DB_PATH, rowCount: row.count };
 }
 
-export function getRandomVideos(n = 5): StoredVideo[] {
-  const db = getDb();
-  const rows = db
-    .prepare("SELECT * FROM videos ORDER BY RANDOM() LIMIT ?")
-    .all(n) as Record<string, unknown>[];
-  return rows.map((r) => ({
+function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
+  return {
     id: r.id as string,
     title: r.title as string,
     channel: r.channel as string,
@@ -134,7 +137,11 @@ export function getRandomVideos(n = 5): StoredVideo[] {
     worthWatching: r.worth_watching === 1,
     worthWatchingReason: r.worth_watching_reason as string,
     summarizedAt: r.summarized_at as string,
-  }));
+  };
+}
+
+export function getRandomVideos(n = 5): StoredVideo[] {
+  return (getDb().prepare("SELECT * FROM videos ORDER BY RANDOM() LIMIT ?").all(n) as Record<string, unknown>[]).map(mapRowToVideo);
 }
 
 const UPDATEABLE_COLUMNS = [
@@ -150,22 +157,5 @@ export function updateVideoColumn(id: string, column: UpdateableColumn, value: s
 }
 
 export function listVideos(limit = 20): StoredVideo[] {
-  const db = getDb();
-  const rows = db
-    .prepare("SELECT * FROM videos ORDER BY summarized_at DESC LIMIT ?")
-    .all(limit) as Record<string, unknown>[];
-  return rows.map((r) => ({
-    id: r.id as string,
-    title: r.title as string,
-    channel: r.channel as string,
-    publishedAt: r.published_at as string,
-    description: r.description as string,
-    thumbnailUrl: (r.thumbnail_url as string | null) ?? undefined,
-    oneLiner: r.one_liner as string,
-    shortSummary: (r.short_summary as string | null) ?? "",
-    keyTakeaways: JSON.parse(r.takeaways as string) as string[],
-    worthWatching: r.worth_watching === 1,
-    worthWatchingReason: r.worth_watching_reason as string,
-    summarizedAt: r.summarized_at as string,
-  }));
+  return (getDb().prepare("SELECT * FROM videos ORDER BY summarized_at DESC LIMIT ?").all(limit) as Record<string, unknown>[]).map(mapRowToVideo);
 }
