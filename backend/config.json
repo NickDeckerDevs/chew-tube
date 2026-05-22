@@ -19,6 +19,7 @@
   "settings": {
     "videosPerChannel": 5,
     "videosPerTopic": 3,
-    "region": "US"
+    "region": "US",
+    "persona": "developer soccer dad with a 9 year old that loves to play video games, cook, and go to music festivals"
   }
 }

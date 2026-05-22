@@ -1,4 +1,19 @@
 /*
+5/22/2026 - nick decker | verdict algorithm v2
+ADDED
+- `verdict TEXT` column — "watch" | "conditional" | "skip" (3-tier, replaces binary worth_watching semantically)
+- `verdict_detail TEXT` column — nuanced reason; for conditional: "watch if X, skip if Y"
+- `top_comments TEXT` column — JSON array of {author, text, likes} from YouTube
+- `clickbait INTEGER` + `clickbait_reason TEXT` columns — title-vs-transcript match signal
+- `getVideosByIds(ids)` — fetches specific videos by ID list (used by rescore + control set scripts)
+
+CHANGED
+- `Summary` type updated with new fields: verdict, verdictDetail, clickbait, clickbaitReason, topComments
+- `StoredVideo` picks up new fields through Summary
+- `saveVideo` persists all new columns
+- `mapRowToVideo` maps all new columns
+- `UPDATEABLE_COLUMNS` extended with new columns
+
 5/22/2026 - nick decker | phase 1 task work
 ADDED
 - `getDbStats()` export returning DB path and row count
@@ -47,12 +62,24 @@ export type VideoMeta = {
   thumbnailUrl?: string;
 };
 
+export type TopComment = {
+  author: string;
+  text: string;
+  likes: number;
+};
+
 export type Summary = {
   oneLiner: string;
   keyTakeaways: string[];
   worthWatching: boolean;
   worthWatchingReason: string;
   shortSummary: string;
+  // v2 verdict fields — null when scored with old algorithm
+  verdict: "watch" | "conditional" | "skip" | null;
+  verdictDetail: string | null;
+  clickbait: boolean | null;
+  clickbaitReason: string | null;
+  topComments: TopComment[] | null;
 };
 
 export type StoredVideo = VideoMeta &
@@ -82,6 +109,11 @@ export function getDb(): Database.Database {
   for (const stmt of [
     "ALTER TABLE videos ADD COLUMN thumbnail_url TEXT",
     "ALTER TABLE videos ADD COLUMN short_summary TEXT",
+    "ALTER TABLE videos ADD COLUMN verdict TEXT",
+    "ALTER TABLE videos ADD COLUMN verdict_detail TEXT",
+    "ALTER TABLE videos ADD COLUMN top_comments TEXT",
+    "ALTER TABLE videos ADD COLUMN clickbait INTEGER",
+    "ALTER TABLE videos ADD COLUMN clickbait_reason TEXT",
   ]) {
     try { _db.exec(stmt); } catch {}
   }
@@ -98,9 +130,15 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
   const db = getDb();
   db.prepare(`
     INSERT OR IGNORE INTO videos
-      (id, title, channel, published_at, description, thumbnail_url, one_liner, short_summary, takeaways, worth_watching, worth_watching_reason, summarized_at)
+      (id, title, channel, published_at, description, thumbnail_url, one_liner, short_summary,
+       takeaways, worth_watching, worth_watching_reason,
+       verdict, verdict_detail, top_comments, clickbait, clickbait_reason,
+       summarized_at)
     VALUES
-      (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary, @takeaways, @worthWatching, @worthWatchingReason, @summarizedAt)
+      (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary,
+       @takeaways, @worthWatching, @worthWatchingReason,
+       @verdict, @verdictDetail, @topComments, @clickbait, @clickbaitReason,
+       @summarizedAt)
   `).run({
     id: video.id,
     title: video.title,
@@ -113,6 +151,11 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     takeaways: JSON.stringify(summary.keyTakeaways),
     worthWatching: summary.worthWatching ? 1 : 0,
     worthWatchingReason: summary.worthWatchingReason,
+    verdict: summary.verdict ?? null,
+    verdictDetail: summary.verdictDetail ?? null,
+    topComments: summary.topComments ? JSON.stringify(summary.topComments) : null,
+    clickbait: summary.clickbait === null ? null : (summary.clickbait ? 1 : 0),
+    clickbaitReason: summary.clickbaitReason ?? null,
     summarizedAt: new Date().toISOString(),
   });
 }
@@ -136,6 +179,11 @@ function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
     keyTakeaways: JSON.parse(r.takeaways as string) as string[],
     worthWatching: r.worth_watching === 1,
     worthWatchingReason: r.worth_watching_reason as string,
+    verdict: (r.verdict as "watch" | "conditional" | "skip" | null) ?? null,
+    verdictDetail: (r.verdict_detail as string | null) ?? null,
+    topComments: r.top_comments ? JSON.parse(r.top_comments as string) as TopComment[] : null,
+    clickbait: r.clickbait === null || r.clickbait === undefined ? null : r.clickbait === 1,
+    clickbaitReason: (r.clickbait_reason as string | null) ?? null,
     summarizedAt: r.summarized_at as string,
   };
 }
@@ -147,6 +195,7 @@ export function getRandomVideos(n = 5): StoredVideo[] {
 const UPDATEABLE_COLUMNS = [
   "title", "channel", "description",
   "thumbnail_url", "one_liner", "short_summary", "worth_watching_reason",
+  "verdict", "verdict_detail", "top_comments", "clickbait", "clickbait_reason",
 ] as const;
 
 type UpdateableColumn = typeof UPDATEABLE_COLUMNS[number];
@@ -158,4 +207,10 @@ export function updateVideoColumn(id: string, column: UpdateableColumn, value: s
 
 export function listVideos(limit = 20): StoredVideo[] {
   return (getDb().prepare("SELECT * FROM videos ORDER BY summarized_at DESC LIMIT ?").all(limit) as Record<string, unknown>[]).map(mapRowToVideo);
+}
+
+export function getVideosByIds(ids: string[]): StoredVideo[] {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  return (getDb().prepare(`SELECT * FROM videos WHERE id IN (${placeholders})`).all(...ids) as Record<string, unknown>[]).map(mapRowToVideo);
 }

@@ -1,4 +1,8 @@
 /*
+5/22/2026 - nick decker | verdict algorithm v2
+ADDED
+- `getTopComments(videoId, n)` — fetches top n comments by like count via YouTube commentThreads.list API
+
 5/22/2026 - nick decker | phase 1 task work
 ADDED
 - `getCategories(regionCode)` — fetches assignable YouTube video categories sorted by ID
@@ -20,7 +24,7 @@ CHANGED
 */
 
 import { youtube } from "@googleapis/youtube";
-import type { VideoMeta } from "./db.js";
+import type { VideoMeta, TopComment } from "./db.js";
 import { decodeHtml } from "./utils.js";
 
 export function getYouTube() {
@@ -81,6 +85,29 @@ export async function getPlaylistVideos(
       description: decodeHtml(item.snippet?.description ?? ""),
       thumbnailUrl: (item.snippet?.thumbnails as { medium?: { url?: string } } | null)?.medium?.url ?? undefined,
     }));
+}
+
+export async function getTopComments(videoId: string, n = 2): Promise<TopComment[]> {
+  const yt = getYouTube();
+  try {
+    const res = await yt.commentThreads.list({
+      part: ["snippet"],
+      videoId,
+      order: "relevance",
+      maxResults: n,
+    });
+    return (res.data.items ?? []).map((item) => {
+      const s = item.snippet?.topLevelComment?.snippet;
+      return {
+        author: decodeHtml(s?.authorDisplayName ?? ""),
+        text: decodeHtml(s?.textDisplay ?? ""),
+        likes: s?.likeCount ?? 0,
+      };
+    });
+  } catch {
+    // Comments disabled or unavailable — not worth failing the whole pipeline
+    return [];
+  }
 }
 
 export async function getTrending(

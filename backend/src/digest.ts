@@ -1,4 +1,11 @@
 /*
+5/22/2026 - nick decker | verdict algorithm v2
+CHANGED
+- `DigestConfig.settings` now includes optional `persona` string — passed to `summarize()`
+- `processVideo()` now accepts `persona` and `sourceType` ("channel" | "topic") — both passed to summarize()
+- After summarization, fetches top 2 comments via `getTopComments()` and patches the summary before saving
+- Comments stored as JSON in `top_comments` DB column via `updateVideoColumn`
+
 5/22/2026 - nick decker | phase development
 ADDED
 - Automated digest runner that reads `config.json` and runs the video pipeline for each configured channel and topic
@@ -11,10 +18,11 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getChannelVideos, searchVideos, resolveHandle } from "./youtube.js";
+import { getChannelVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
-import { isAlreadySummarized, saveVideo } from "./db.js";
+import type { SourceType } from "./summarizer.js";
+import { isAlreadySummarized, saveVideo, updateVideoColumn } from "./db.js";
 import type { VideoMeta, StoredVideo } from "./db.js";
 import { sendDigestEmail } from "./mailer.js";
 
@@ -22,7 +30,7 @@ type ChannelEntry = { id?: string; handle?: string; label: string };
 type DigestConfig = {
   channels: ChannelEntry[];
   topics: string[];
-  settings: { videosPerChannel: number; videosPerTopic: number; region: string };
+  settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string };
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,8 +39,12 @@ const config = JSON.parse(
 ) as DigestConfig;
 
 const CUTOFF = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+const persona = config.settings.persona ?? "a general viewer";
 
-async function processVideo(video: VideoMeta): Promise<StoredVideo | null> {
+async function processVideo(
+  video: VideoMeta,
+  sourceType: SourceType
+): Promise<StoredVideo | null> {
   if (!video.id) return null;
 
   if (isAlreadySummarized(video.id)) {
@@ -49,8 +61,13 @@ async function processVideo(video: VideoMeta): Promise<StoredVideo | null> {
   console.log(` ok (${result.estimatedTokens.toLocaleString()} tokens)`);
 
   process.stdout.write(`  Summarizing...`);
-  const summary = await summarize(video.title, result.text, result.chunked);
+  const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType);
   console.log(" done");
+
+  process.stdout.write(`  Fetching comments...`);
+  const comments = await getTopComments(video.id, 2);
+  summary.topComments = comments.length > 0 ? comments : null;
+  console.log(comments.length > 0 ? ` ${comments.length} fetched` : " none available");
 
   try {
     saveVideo(video, summary);
@@ -66,7 +83,8 @@ async function main(): Promise<void> {
   const toEmail = process.env.DIGEST_TO_EMAIL;
   if (!toEmail) throw new Error("DIGEST_TO_EMAIL is not set");
 
-  console.log(`Digest run — cutoff: ${CUTOFF}\n`);
+  console.log(`Digest run — cutoff: ${CUTOFF}`);
+  console.log(`Persona: ${persona}\n`);
   const newVideos: StoredVideo[] = [];
 
   for (const ch of config.channels) {
@@ -88,7 +106,7 @@ async function main(): Promise<void> {
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
     for (const video of fresh) {
-      const stored = await processVideo(video);
+      const stored = await processVideo(video, "channel");
       if (stored) newVideos.push(stored);
     }
   }
@@ -100,7 +118,7 @@ async function main(): Promise<void> {
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
     for (const video of fresh) {
-      const stored = await processVideo(video);
+      const stored = await processVideo(video, "topic");
       if (stored) newVideos.push(stored);
     }
   }

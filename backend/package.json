@@ -8,7 +8,9 @@
     "digest": "tsx src/digest.ts",
     "test-email": "tsx src/test-email.ts",
     "backfill": "tsx src/backfill.ts",
-    "fix-titles": "tsx src/fix-titles.ts"
+    "fix-titles": "tsx src/fix-titles.ts",
+    "send-before": "tsx src/send-before.ts",
+    "rescore": "tsx src/rescore.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
