@@ -135,7 +135,7 @@ Respond with the JSON object only, no markdown fences.`;
   const client = getAnthropicClient();
   const response = await client.messages.create({
     model: HAIKU_MODEL,
-    max_tokens: 2048,
+    max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
 
