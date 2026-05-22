@@ -1,0 +1,35 @@
+# 5/22/2026 - nick decker | phase development
+# ADDED
+# - Scheduled GitHub Actions workflow — runs daily at 7am CT (0 12 * * * UTC)
+# - `workflow_dispatch` trigger for manual test runs via GitHub UI
+# - Injects YOUTUBE_API_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY, DIGEST_TO_EMAIL from repo secrets
+
+name: Daily YouTube Digest
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # 7am CT (UTC-5 in winter) — adjust for DST
+  workflow_dispatch:        # manual trigger via GitHub UI for testing
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: backend
+
+      - name: Run digest
+        run: npx tsx src/digest.ts
+        working-directory: backend
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_TO_EMAIL: ${{ secrets.DIGEST_TO_EMAIL }}
