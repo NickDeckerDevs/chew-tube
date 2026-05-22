@@ -5,12 +5,18 @@ CHANGED
 - Phase 1 and Phase 2 verification checklists marked done
 - Added Phase 2 bug fixes section (keyTakeaways.map fix, esc() fix)
 - Added Phase 2 remaining: GitHub Actions secrets instructions
+
+5/22/2026 - nick decker | email revisions
+ADDED
+- Email Revisions section documenting all changes + backfill TODO
+CHANGED
+- Status updated to reflect email revision work in progress
 -->
 
 # YouTube Summary — Project Plan
 
 **Started:** 2026-05-22
-**Status:** Phase 2 complete — daily digest running, email delivery verified
+**Status:** Email revisions in progress — backfill required before test
 
 ---
 
@@ -185,6 +191,31 @@ The GitHub Actions workflow is committed and ready. To activate scheduled runs, 
 - Nodemailer + SMTP: self-hosted, no vendor dependency
 
 **Email format:** HTML digest — one section per video. Title, channel, one-liner, key takeaways as bullets, worth-watching verdict with reason. Link to the actual YouTube video. Sent once daily.
+
+---
+
+---
+
+## Email Revisions (2026-05-22)
+
+### What Changed
+- **HTML entity decoding** — YouTube API returns raw HTML entities (`&#39;`, `&amp;`, etc.) in text fields. Added `decodeHtml()` in `youtube.ts` applied to all title, channel, and description fields before storage.
+- **Thumbnail URLs** — `medium` thumbnail (320×180) now captured from YouTube API in all fetch functions (`getTrending`, `getChannelVideos`, `searchVideos`, `getPlaylistVideos`). Stored as `thumbnail_url` in DB. Rendered as an `<img>` tag in email.
+- **Short summary** — New `short_summary` field (2-3 sentences) added to the Claude tool schema. Stored separately from `oneLiner` in DB. Displayed below the title/channel in the email, above the one-liner.
+- **Test email script** — `npm run test-email` pulls 5 random DB rows and sends a digest email. Used to verify template changes without waiting for fresh 24h videos.
+- **Future** (Phase 3): title link in email will point to the Tube Chew frontend summary page. Placeholder noted in `mailer.ts`.
+
+### Backfill Required — Before Next Test
+
+Existing DB rows (32+) were saved before `short_summary` and `thumbnail_url` columns existed. A backfill is needed:
+
+- [ ] **`thumbnail_url` backfill** — call `videos.list` with existing video IDs, update rows with medium thumbnail URL
+- [ ] **`short_summary` backfill** — generate 2-3 sentence summary from existing `one_liner` + `key_takeaways` using Claude (transcripts not stored, so we synthesize from existing data)
+
+Once backfill runs, `npm run test-email` will show the full updated email format.
+
+### Schema Migration
+`thumbnail_url TEXT` and `short_summary TEXT` columns added via `ALTER TABLE` (nullable, idempotent — safe to run on existing DB).
 
 ---
 

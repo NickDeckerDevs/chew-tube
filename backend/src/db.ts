@@ -6,6 +6,15 @@ ADDED
 
 CHANGED
 - Added `fs` import
+
+5/22/2026 - nick decker | email revisions
+ADDED
+- `thumbnailUrl` (optional) to `VideoMeta` — 320x180 medium thumbnail from YouTube API
+- `shortSummary` to `Summary` — 2-3 sentence digest preview, stored separately from `oneLiner`
+
+CHANGED
+- Schema migration: `thumbnail_url TEXT` and `short_summary TEXT` columns added via `ALTER TABLE` (nullable, idempotent)
+- `saveVideo` and `listVideos` updated to include both new fields
 */
 
 import Database from "better-sqlite3";
@@ -23,6 +32,7 @@ export type VideoMeta = {
   channel: string;
   publishedAt: string;
   description: string;
+  thumbnailUrl?: string;
 };
 
 export type Summary = {
@@ -30,6 +40,7 @@ export type Summary = {
   keyTakeaways: string[];
   worthWatching: boolean;
   worthWatchingReason: string;
+  shortSummary: string;
 };
 
 export type StoredVideo = VideoMeta &
@@ -56,6 +67,12 @@ function getDb(): Database.Database {
       summarized_at TEXT NOT NULL
     )
   `);
+  for (const stmt of [
+    "ALTER TABLE videos ADD COLUMN thumbnail_url TEXT",
+    "ALTER TABLE videos ADD COLUMN short_summary TEXT",
+  ]) {
+    try { _db.exec(stmt); } catch {}
+  }
   return _db;
 }
 
@@ -69,16 +86,18 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
   const db = getDb();
   db.prepare(`
     INSERT OR IGNORE INTO videos
-      (id, title, channel, published_at, description, one_liner, takeaways, worth_watching, worth_watching_reason, summarized_at)
+      (id, title, channel, published_at, description, thumbnail_url, one_liner, short_summary, takeaways, worth_watching, worth_watching_reason, summarized_at)
     VALUES
-      (@id, @title, @channel, @publishedAt, @description, @oneLiner, @takeaways, @worthWatching, @worthWatchingReason, @summarizedAt)
+      (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary, @takeaways, @worthWatching, @worthWatchingReason, @summarizedAt)
   `).run({
     id: video.id,
     title: video.title,
     channel: video.channel,
     publishedAt: video.publishedAt,
     description: video.description,
+    thumbnailUrl: video.thumbnailUrl ?? null,
     oneLiner: summary.oneLiner,
+    shortSummary: summary.shortSummary,
     takeaways: JSON.stringify(summary.keyTakeaways),
     worthWatching: summary.worthWatching ? 1 : 0,
     worthWatchingReason: summary.worthWatchingReason,
@@ -92,6 +111,27 @@ export function getDbStats(): { path: string; rowCount: number } {
   return { path: DB_PATH, rowCount: row.count };
 }
 
+export function getRandomVideos(n = 5): StoredVideo[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT * FROM videos ORDER BY RANDOM() LIMIT ?")
+    .all(n) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    id: r.id as string,
+    title: r.title as string,
+    channel: r.channel as string,
+    publishedAt: r.published_at as string,
+    description: r.description as string,
+    thumbnailUrl: (r.thumbnail_url as string | null) ?? undefined,
+    oneLiner: r.one_liner as string,
+    shortSummary: (r.short_summary as string | null) ?? "",
+    keyTakeaways: JSON.parse(r.takeaways as string) as string[],
+    worthWatching: r.worth_watching === 1,
+    worthWatchingReason: r.worth_watching_reason as string,
+    summarizedAt: r.summarized_at as string,
+  }));
+}
+
 export function listVideos(limit = 20): StoredVideo[] {
   const db = getDb();
   const rows = db
@@ -103,7 +143,9 @@ export function listVideos(limit = 20): StoredVideo[] {
     channel: r.channel as string,
     publishedAt: r.published_at as string,
     description: r.description as string,
+    thumbnailUrl: (r.thumbnail_url as string | null) ?? undefined,
     oneLiner: r.one_liner as string,
+    shortSummary: (r.short_summary as string | null) ?? "",
     keyTakeaways: JSON.parse(r.takeaways as string) as string[],
     worthWatching: r.worth_watching === 1,
     worthWatchingReason: r.worth_watching_reason as string,

@@ -2,6 +2,11 @@
 5/22/2026 - nick decker | phase 2 bug fix
 FIXED
 - Validate `key_takeaways` is an array at the API boundary in `callSummaryTool` — Claude's tool_use response is cast with `as`, so a malformed response could silently produce `undefined`, causing `keyTakeaways.map is not a function` in the mailer
+
+5/22/2026 - nick decker | email revisions
+ADDED
+- `short_summary` field to the Claude tool schema — 2-3 sentence digest preview generated alongside the existing summary
+- `shortSummary` returned in the `Summary` object and passed through to DB storage
 */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -34,12 +39,17 @@ const SUMMARY_TOOL: Anthropic.Tool = {
         type: "string",
         description: "One sentence explaining the worth_watching verdict.",
       },
+      short_summary: {
+        type: "string",
+        description: "A 2-3 sentence summary of the video suitable for a digest preview. More detail than one_liner but still concise.",
+      },
     },
     required: [
       "one_liner",
       "key_takeaways",
       "worth_watching",
       "worth_watching_reason",
+      "short_summary",
     ],
   },
 };
@@ -74,6 +84,7 @@ async function callSummaryTool(
     key_takeaways: string[];
     worth_watching: boolean;
     worth_watching_reason: string;
+    short_summary: string;
   };
 
   return {
@@ -83,6 +94,7 @@ async function callSummaryTool(
       : [],
     worthWatching: input.worth_watching,
     worthWatchingReason: input.worth_watching_reason,
+    shortSummary: typeof input.short_summary === "string" ? input.short_summary : "",
   };
 }
 

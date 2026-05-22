@@ -111,6 +111,7 @@ async function fetchVideos(opts: ReturnType<typeof parseArgs>): Promise<VideoMet
 
 function printSummary(video: VideoMeta, summary: {
   oneLiner: string;
+  shortSummary: string;
   keyTakeaways: string[];
   worthWatching: boolean;
   worthWatchingReason: string;
@@ -121,7 +122,8 @@ function printSummary(video: VideoMeta, summary: {
 
   console.log(`\n${ANSI.bold}${ANSI.cyan}${video.title}${ANSI.reset}`);
   console.log(`${ANSI.dim}${video.channel} · https://youtube.com/watch?v=${video.id}${ANSI.reset}`);
-  console.log(`\n${summary.oneLiner}\n`);
+  if (summary.shortSummary) console.log(`\n${summary.shortSummary}`);
+  console.log(`\n${ANSI.dim}${summary.oneLiner}${ANSI.reset}\n`);
   console.log(`${ANSI.bold}Key takeaways:${ANSI.reset}`);
   for (const pt of summary.keyTakeaways) {
     console.log(`  • ${pt}`);

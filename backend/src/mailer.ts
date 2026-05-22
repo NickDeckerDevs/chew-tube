@@ -8,6 +8,12 @@ ADDED
 5/22/2026 - nick decker | phase 2 bug fix
 FIXED
 - `esc()` now safely handles undefined/null at runtime — Claude API responses can return unexpected non-string values despite TypeScript types
+
+5/22/2026 - nick decker | email revisions
+ADDED
+- Thumbnail image (320×180) rendered above title when `thumbnailUrl` is present
+- Short summary (2-3 sentences) displayed below channel name, above one-liner
+- TODO (Phase 3): replace video title link with a link to the Tube Chew frontend summary page once the frontend exists
 */
 
 import { Resend } from "resend";
@@ -61,13 +67,21 @@ function buildVideoSection(video: StoredVideo): string {
   const takeaways = video.keyTakeaways
     .map((t) => `<li style="margin-bottom: 6px;">${esc(t)}</li>`)
     .join("\n    ");
+  const thumbnail = video.thumbnailUrl
+    ? `<img src="${video.thumbnailUrl}" width="320" alt="" style="width:100%;max-width:320px;height:auto;display:block;margin-bottom:12px;border-radius:4px;">`
+    : "";
+  const shortSummaryHtml = video.shortSummary
+    ? `<p style="margin: 0 0 10px 0; line-height: 1.6;">${esc(video.shortSummary)}</p>`
+    : "";
 
   return `<div style="margin-bottom: 28px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+  ${thumbnail}
   <h2 style="margin: 0 0 4px 0; font-size: 17px; line-height: 1.3;">
     <a href="${url}" style="color: #0066cc; text-decoration: none;">${esc(video.title)}</a>
   </h2>
-  <p style="color: #666; font-size: 13px; margin: 0 0 12px 0;">${esc(video.channel)}</p>
-  <p style="font-style: italic; margin: 0 0 14px 0; line-height: 1.5;">${esc(video.oneLiner)}</p>
+  <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">${esc(video.channel)}</p>
+  ${shortSummaryHtml}
+  <p style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${esc(video.oneLiner)}</p>
   <ul style="margin: 0 0 14px 0; padding-left: 20px; line-height: 1.5;">
     ${takeaways}
   </ul>

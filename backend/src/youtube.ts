@@ -5,10 +5,29 @@ ADDED
 - `resolveHandle(handle)` — resolves a @handle to its channel ID via the YouTube API
 - `extractPlaylistId(input)` — parses a playlist ID out of a full YouTube URL or returns input as-is
 - `getPlaylistVideos(playlistId, n)` — fetches up to n videos from a playlist
+
+5/22/2026 - nick decker | email revisions
+ADDED
+- `decodeHtml()` — decodes HTML entities YouTube API returns in text fields (&#39; → ', &amp; → &, etc.)
+- `thumbnailUrl` (medium, 320×180) extracted in all fetch functions and included in `VideoMeta`
+
+CHANGED
+- All `itemToMeta`, `searchItemToMeta`, and `getPlaylistVideos` map functions now run `decodeHtml()` on title, channel, and description, and capture `thumbnailUrl`
 */
 
 import { youtube } from "@googleapis/youtube";
 import type { VideoMeta } from "./db.js";
+
+function decodeHtml(str: string): string {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&apos;/g, "'");
+}
 
 function getYouTube() {
   const apiKey = process.env.YOUTUBE_API_KEY;
@@ -60,10 +79,11 @@ export async function getPlaylistVideos(
     .filter((item) => item.snippet?.resourceId?.videoId)
     .map((item) => ({
       id: item.snippet!.resourceId!.videoId!,
-      title: item.snippet?.title ?? "(no title)",
-      channel: item.snippet?.videoOwnerChannelTitle ?? item.snippet?.channelTitle ?? "(unknown)",
+      title: decodeHtml(item.snippet?.title ?? "(no title)"),
+      channel: decodeHtml(item.snippet?.videoOwnerChannelTitle ?? item.snippet?.channelTitle ?? "(unknown)"),
       publishedAt: item.snippet?.publishedAt ?? "",
-      description: item.snippet?.description ?? "",
+      description: decodeHtml(item.snippet?.description ?? ""),
+      thumbnailUrl: (item.snippet?.thumbnails as { medium?: { url?: string } } | null)?.medium?.url ?? undefined,
     }));
 }
 
@@ -120,14 +140,16 @@ function itemToMeta(item: {
     channelTitle?: string | null;
     publishedAt?: string | null;
     description?: string | null;
+    thumbnails?: { medium?: { url?: string | null } | null } | null;
   } | null;
 }): VideoMeta {
   return {
     id: item.id ?? "",
-    title: item.snippet?.title ?? "(no title)",
-    channel: item.snippet?.channelTitle ?? "(unknown)",
+    title: decodeHtml(item.snippet?.title ?? "(no title)"),
+    channel: decodeHtml(item.snippet?.channelTitle ?? "(unknown)"),
     publishedAt: item.snippet?.publishedAt ?? "",
-    description: item.snippet?.description ?? "",
+    description: decodeHtml(item.snippet?.description ?? ""),
+    thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? undefined,
   };
 }
 
@@ -138,13 +160,15 @@ function searchItemToMeta(item: {
     channelTitle?: string | null;
     publishedAt?: string | null;
     description?: string | null;
+    thumbnails?: { medium?: { url?: string | null } | null } | null;
   } | null;
 }): VideoMeta {
   return {
     id: item.id?.videoId ?? "",
-    title: item.snippet?.title ?? "(no title)",
-    channel: item.snippet?.channelTitle ?? "(unknown)",
+    title: decodeHtml(item.snippet?.title ?? "(no title)"),
+    channel: decodeHtml(item.snippet?.channelTitle ?? "(unknown)"),
     publishedAt: item.snippet?.publishedAt ?? "",
-    description: item.snippet?.description ?? "",
+    description: decodeHtml(item.snippet?.description ?? ""),
+    thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? undefined,
   };
 }

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "digest": "tsx src/digest.ts"
+    "digest": "tsx src/digest.ts",
+    "test-email": "tsx src/test-email.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
