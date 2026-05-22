@@ -1,0 +1,49 @@
+{
+  "channels": [
+    { "id": "UCrDwWp7EBBv4NwvScIpBDOA", "label": "Anthropic" },
+    { "id": "UC_x36zCEGilGpB1m-V4gmjg", "label": "Indie Dev Dan" },
+    { "id": "UCFbNIlppjAuEX4znoulh0Cw", "label": "Web Dev Simplified" },
+    { "id": "UC9x0AN7BWHpCDHSm9NiJFJQ", "label": "NetworkChuck" },
+
+    { "id": "UCshObcm-nLhbu8MY50EZ5Ng", "label": "Benn Jordan" },
+    { "id": "UC8wXC0ZCfGt3HaVLy_fdTQw", "label": "Digital Trends" },
+    { "id": "UCl2mFZoRqjw_ELax4Yisf6w", "label": "Louis Rossmann" },
+    { "id": "UC8URMa1fI4rlaLc-Lhev2fQ", "label": "Ryan McBeth" },
+
+    { "id": "UC19OYOBqkgVqgTIQxbsPdlw", "label": "That Dude Can Cook" },
+    { "id": "UC1NFFogiT88Uhmidrz8Ypnw", "label": "Brad Leone" },
+    { "id": "UCqqJQ_cXSat0KIAVfIfKkVA", "label": "J. Kenji López-Alt" },
+    { "id": "UChBEbMKI1eCcejTtmI32UEw", "label": "Joshua Weissman" },
+
+    { "id": "UCYqsJbDDngvxb_rbHzHpYGA", "label": "MagicTheNoah" },
+    { "id": "UCCYWagpWEequTwx61dYGT0w", "label": "Gianmarco Soresi" },
+    { "id": "UCT5C7yaO3RVuOgwP8JVAujQ", "label": "Taskmaster" },
+
+    { "id": "UCxjqkVEAAQfWN2iW1oEaXTw", "label": "Coach Rory Soccer" },
+
+    { "id": "UCqoEBvsSaKWhw8KbPPWOLEg", "label": "DanOttawa" },
+
+    { "id": "UClu2e7S8atp6tG2galK9hgg", "label": "BDoubleO" },
+    { "id": "UCFKDEp9si4RmHFWJW1vYsMA", "label": "EthosLab" },
+    { "id": "UCsuKgiVb2KJ2sZdrrwoAqsA", "label": "wattlesplays" },
+    { "id": "UCU9pX8hKcrx06XfOB-VQLdw", "label": "xisumavoid" },
+    { "id": "UC32w6uX5qtmUtF4QQQ2PKaQ", "label": "Hermitcraft Recap" },
+
+    { "id": "UCw0iQFZw-sVk92WQOmq4Kkw", "label": "NaNNiK Gaming" },
+
+    { "id": "UC-3jIAlnQmbbVMV6gR7K8aQ", "label": "The Majority Report" },
+    { "id": "UC3XTzVzaHQEd30rQbuvCtTQ", "label": "Last Week Tonight" },
+
+    { "id": "UCY1kMZp36IQSyNx_9h4mpCg", "label": "Mark Rober" }
+  ],
+  "topics": [
+    "AI agents programming",
+    "TypeScript new features",
+    "HubSpot developer"
+  ],
+  "settings": {
+    "videosPerChannel": 5,
+    "videosPerTopic": 3,
+    "region": "US"
+  }
+}
