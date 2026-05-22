@@ -1,6 +1,10 @@
+# 5/22/2026 - nick decker | schedule update
+# CHANGED
+# - Cron updated from 7am CT (0 12 * * *) to 5am EST (0 10 * * * UTC)
+#
 # 5/22/2026 - nick decker | phase development
 # ADDED
-# - Scheduled GitHub Actions workflow — runs daily at 7am CT (0 12 * * * UTC)
+# - Scheduled GitHub Actions workflow — runs daily at 5am EST (0 10 * * * UTC)
 # - `workflow_dispatch` trigger for manual test runs via GitHub UI
 # - Injects YOUTUBE_API_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY, DIGEST_TO_EMAIL from repo secrets
 
@@ -8,7 +12,7 @@ name: Daily YouTube Digest
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 7am CT (UTC-5 in winter) — adjust for DST
+    - cron: '0 10 * * *'  # 5am EST (UTC-5)
   workflow_dispatch:        # manual trigger via GitHub UI for testing
 
 jobs:
