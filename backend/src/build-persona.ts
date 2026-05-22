@@ -167,4 +167,7 @@ Respond with the JSON object only, no markdown fences.`;
   }
 }
 
-runScript(main);
+// Only run when executed directly — not when imported for loadPersonaProfile/types
+if (process.argv[1]?.endsWith("build-persona.ts") || process.argv[1]?.endsWith("build-persona.js")) {
+  runScript(main);
+}
