@@ -1,0 +1,195 @@
+# YouTube Summary — Project Plan
+
+**Started:** 2026-05-22
+**Status:** Phase 1 backend complete — awaiting API keys for live test
+
+---
+
+## The Big Hairy Audacious Goal
+
+A daily digest system that monitors YouTube channels and topics I care about, extracts video transcripts, summarizes them with AI, and delivers the highlights to my inbox. Instead of watching 10 videos, I get a daily email telling me which ones are worth watching and why — with the key takeaways from the ones that aren't.
+
+---
+
+## Phases
+
+### Phase 1 — Backend CLI ✅ COMPLETE
+A TypeScript backend that fetches YouTube videos, pulls transcripts, summarizes with Claude, and stores results locally. Runs from the command line. No frontend, no email, no scheduling yet.
+
+### Phase 2 — Automation & Personalization (up next)
+Daily automated runs pulling from channels and topics I actually care about.
+
+### Phase 3 — Frontend & Email (future)
+A UI to manage channels/topics and a daily email digest.
+
+---
+
+## Decisions & Why
+
+### Language: TypeScript (not Python)
+**Decision:** TypeScript for the backend.
+
+**Why:** The eventual frontend will be React/Next.js. One language across the whole stack means shared types, a natural path to a monorepo, and no context-switching. The `youtube-transcript` npm package is slightly less mature than the Python equivalent but reliable enough for this use case. The Anthropic SDK is excellent in both — not a differentiator.
+
+**Tradeoff acknowledged:** Python has the more battle-tested YouTube ecosystem. We accepted that tradeoff in favor of long-term stack coherence.
+
+---
+
+### Video Discovery: YouTube Data API v3
+**Decision:** Use the official YouTube Data API v3 via `@googleapis/youtube`.
+
+**Why:** The only reliable, official way to programmatically fetch trending videos, channel uploads, and keyword search results. Free tier gives 10,000 units/day — enough for daily digest runs. Requires an API key from Google Cloud Console.
+
+**What it enables:**
+- `trending` mode: `videos.list` with `chart=mostPopular`
+- `channel` mode: `search.list` with `channelId`, ordered by date
+- `search` mode: `search.list` with keyword query
+
+---
+
+### Transcript Fetching: `youtube-transcript` npm package
+**Decision:** Use the `youtube-transcript` npm package. No API key needed.
+
+**Why:** YouTube exposes transcripts through their internal timedtext endpoint. This package wraps that cleanly. It works on any public video that has captions — including auto-generated ones. No authentication required, no quota concerns for transcript fetching specifically.
+
+**Tradeoff:** Relies on an undocumented YouTube internal endpoint (same one the browser uses). Could theoretically break if YouTube changes it, but this is how the whole ecosystem works and it's been stable for years.
+
+**What we skip:** Whisper (speech-to-text fallback). Videos with no transcript are simply skipped with a warning. We can revisit this if too many good videos are being missed.
+
+---
+
+### Summarization Model: Claude Haiku 4.5
+**Decision:** Use `claude-haiku-4-5-20251001` for all summaries.
+
+**Why:** Cost efficiency for bulk runs. A daily digest might summarize 10–50 videos. Haiku is fast and cheap while still producing high-quality structured output. We can swap to Sonnet for individual videos we want deeper analysis on.
+
+**Output shape** (enforced via Claude tool use — structured JSON, not freeform):
+```
+{
+  oneLiner: string            // one sentence: what is this video about
+  keyTakeaways: string[]      // 3–5 bullet points
+  worthWatching: boolean      // should I actually watch this?
+  worthWatchingReason: string // one sentence explaining the verdict
+}
+```
+
+---
+
+### Long Transcript Handling: Check size → map-reduce if needed
+**Decision:** Estimate token count before sending to Claude. Under 120K tokens — send directly. At or over — chunk into ~50K-token pieces, summarize each, then merge.
+
+**Why:** Haiku has a 200K token context window. Most transcripts are 2K–30K tokens (a 2-hour video tops out around 30K tokens). The 120K threshold gives plenty of headroom. The map-reduce path only activates for genuinely long content (multi-hour conferences, full courses). This keeps the happy path dead simple and handles edge cases correctly.
+
+**Token estimation:** `Math.ceil(wordCount * 1.35)` — conservative multiplier for English text.
+
+---
+
+### Storage: SQLite via `better-sqlite3`
+**Decision:** SQLite with the synchronous `better-sqlite3` driver.
+
+**Why:** Zero setup. One file. Perfect for a personal tool that isn't serving multiple concurrent users. The synchronous API is actually a feature here — the CLI pipeline is naturally sequential (fetch → transcribe → summarize → save), so async adds nothing.
+
+**Idempotency:** `INSERT OR IGNORE` on the video ID. Re-running the same command never re-summarizes videos already in the DB. Safe to run multiple times.
+
+**Schema carries forward:** The Phase 1 schema is designed to support Phase 3 without migration.
+
+---
+
+## What's Built (Phase 1)
+
+```
+youtube-summary/backend/
+├── package.json              ← dependencies + npm scripts
+├── tsconfig.json             ← TypeScript config (ESM, NodeNext)
+├── .env.example              ← template for required API keys
+├── .gitignore                ← excludes node_modules, .env, *.db
+└── src/
+    ├── index.ts              ← CLI entry: parses args, orchestrates the pipeline
+    ├── youtube.ts            ← YouTube Data API: getTrending / getChannelVideos / searchVideos
+    ├── transcript.ts         ← Transcript fetch + token estimation + map-reduce chunking
+    ├── summarizer.ts         ← Claude Haiku: summarize() with structured tool-use output
+    └── db.ts                 ← SQLite: init schema, isAlreadySummarized, saveVideo, listVideos
+```
+
+### CLI Usage
+```bash
+# from youtube-summary/backend/
+npx tsx src/index.ts trending                        # 5 trending videos (US)
+npx tsx src/index.ts trending --category 28          # Science & Tech category
+npx tsx src/index.ts trending --n 10                 # fetch more
+npx tsx src/index.ts channel UCxxxxxxxxxxxxxxxx      # latest from a channel
+npx tsx src/index.ts search "AI agents"              # keyword search
+```
+
+---
+
+## Current Blockers
+
+**Need API keys before we can run:**
+
+1. **YouTube Data API v3 key**
+   - Google Cloud Console → APIs & Services → Enable "YouTube Data API v3" → Create API Key
+   - Add to `backend/.env` as `YOUTUBE_API_KEY=`
+
+2. **Anthropic API key**
+   - Already have one for Claude Code — same key works
+   - Add to `backend/.env` as `ANTHROPIC_API_KEY=`
+
+**`.env` file to create at `backend/.env`:**
+```
+YOUTUBE_API_KEY=your_youtube_key
+ANTHROPIC_API_KEY=your_anthropic_key
+```
+
+---
+
+## Verification Checklist (Phase 1)
+
+- [ ] `npx tsx src/index.ts trending` — 5 videos fetched, transcribed, summarized, saved
+- [ ] Re-run same command — no re-processing ("already in DB" skips shown)
+- [ ] `npx tsx src/index.ts channel <id>` — channel-specific results
+- [ ] `npx tsx src/index.ts search "TypeScript"` — keyword results
+- [ ] `sqlite3 backend/data/summaries.db "SELECT id, title, one_liner FROM videos;"` — rows present
+
+---
+
+## Phase 2 — Automation & Personalization (Design Notes)
+
+**Goal:** Run daily automatically, from channels and topics I actually care about.
+
+**Channel/Content Source — likely approach:**
+- Start with a `config.json` file listing channel IDs and search keywords I manage manually. No OAuth, easy to version-control.
+- Add YouTube OAuth later *only if* maintaining the list manually becomes annoying. OAuth pulls actual subscriptions automatically but adds complexity (Google Cloud OAuth consent screen, token refresh).
+
+**Scheduling — options:**
+- **System cron** (simplest): `crontab -e` → run the CLI at 6am daily. Works, but requires the machine to be on.
+- **node-cron** (in-process): Long-running Node process with internal scheduler. Good for a VPS.
+- **Cloud scheduler** (best long-term): GitHub Actions scheduled workflow, Railway cron, or Render cron. Machine doesn't need to be on.
+- Likely path: system cron for local testing → cloud scheduler when we want it running reliably every day.
+
+**Email Delivery — likely pick: Resend**
+- Resend: best developer experience, TypeScript SDK, 3,000 free emails/month, clean API
+- SendGrid: higher free tier (100/day), more complex
+- Nodemailer + SMTP: self-hosted, no vendor dependency
+
+**Email format:** HTML digest — one section per video. Title, channel, one-liner, key takeaways as bullets, worth-watching verdict with reason. Link to the actual YouTube video. Sent once daily.
+
+---
+
+## Phase 3 — Frontend & Configuration UI (Design Notes)
+
+**Goal:** Manage channels/topics and browse summaries without editing config files.
+
+**Stack — likely: Next.js**
+- Full-stack TypeScript. API routes + React in one repo.
+- Same language as the backend — natural monorepo.
+- Alternative: SvelteKit (lighter) if simplicity matters more than ecosystem.
+
+**UI features to build:**
+- **Channel manager** — add/remove channels by URL or ID, toggle enabled/disabled
+- **Topic/keyword manager** — manage search queries that run alongside channels
+- **Summary browser** — paginated, filterable list of past summaries with expand + video link
+- **Settings panel** — videos per run, email address, send time, on/off toggle
+- **Watch history** — mark videos as watched or interesting; feed into future prioritization
+
+**API layer:** Next.js API routes reading from the same SQLite DB via `better-sqlite3`. The Phase 1 schema was designed to carry forward without migration.
