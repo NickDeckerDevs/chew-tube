@@ -11,6 +11,7 @@ CHANGED
 - Expanded category table with full list of IDs
 - Updated DB path reference from `backend/data/` to `data/`
 - Updated "The Person Behind the Digestion" blurb
+- Fixed all Channel List command examples to include full `npx tsx src/index.ts` prefix
 -->
 
 # 🍽️ Tube Chew
@@ -215,85 +216,85 @@ Re-running the same command will skip already-processed videos — no duplicate 
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| Anthropic | @anthropic-ai | `UCrDwWp7EBBv4NwvScIpBDOA` | `channel UCrDwWp7EBBv4NwvScIpBDOA` |
-| Indie Dev Dan | @indydevdan | `UC_x36zCEGilGpB1m-V4gmjg` | `channel UC_x36zCEGilGpB1m-V4gmjg` |
-| Web Dev Simplified | @WebDevSimplified | `UCFbNIlppjAuEX4znoulh0Cw` | `channel UCFbNIlppjAuEX4znoulh0Cw` |
-| NetworkChuck | @NetworkChuck | `UC9x0AN7BWHpCDHSm9NiJFJQ` | `channel UC9x0AN7BWHpCDHSm9NiJFJQ` |
+| Anthropic | @anthropic-ai | `UCrDwWp7EBBv4NwvScIpBDOA` | `npx tsx src/index.ts channel UCrDwWp7EBBv4NwvScIpBDOA` |
+| Indie Dev Dan | @indydevdan | `UC_x36zCEGilGpB1m-V4gmjg` | `npx tsx src/index.ts channel UC_x36zCEGilGpB1m-V4gmjg` |
+| Web Dev Simplified | @WebDevSimplified | `UCFbNIlppjAuEX4znoulh0Cw` | `npx tsx src/index.ts channel UCFbNIlppjAuEX4znoulh0Cw` |
+| NetworkChuck | @NetworkChuck | `UC9x0AN7BWHpCDHSm9NiJFJQ` | `npx tsx src/index.ts channel UC9x0AN7BWHpCDHSm9NiJFJQ` |
 
 ### Tech, Surveillance & Society
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| Benn Jordan | @BennJordan | `UCshObcm-nLhbu8MY50EZ5Ng` | `channel UCshObcm-nLhbu8MY50EZ5Ng` |
-| Digital Trends | @digitaltrends | `UC8wXC0ZCfGt3HaVLy_fdTQw` | `channel UC8wXC0ZCfGt3HaVLy_fdTQw` |
-| Louis Rossmann | @rossmanngroup | `UCl2mFZoRqjw_ELax4Yisf6w` | `channel UCl2mFZoRqjw_ELax4Yisf6w` |
-| Ryan McBeth | @RyanMcBethProgramming | `UC8URMa1fI4rlaLc-Lhev2fQ` | `channel UC8URMa1fI4rlaLc-Lhev2fQ` |
+| Benn Jordan | @BennJordan | `UCshObcm-nLhbu8MY50EZ5Ng` | `npx tsx src/index.ts channel UCshObcm-nLhbu8MY50EZ5Ng` |
+| Digital Trends | @digitaltrends | `UC8wXC0ZCfGt3HaVLy_fdTQw` | `npx tsx src/index.ts channel UC8wXC0ZCfGt3HaVLy_fdTQw` |
+| Louis Rossmann | @rossmanngroup | `UCl2mFZoRqjw_ELax4Yisf6w` | `npx tsx src/index.ts channel UCl2mFZoRqjw_ELax4Yisf6w` |
+| Ryan McBeth | @RyanMcBethProgramming | `UC8URMa1fI4rlaLc-Lhev2fQ` | `npx tsx src/index.ts channel UC8URMa1fI4rlaLc-Lhev2fQ` |
 
 ### Cooking / Recipes
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| That Dude Can Cook | @thatdudecancook | `UC19OYOBqkgVqgTIQxbsPdlw` | `channel UC19OYOBqkgVqgTIQxbsPdlw` |
-| Brad Leone | @bradleone | `UC1NFFogiT88Uhmidrz8Ypnw` | `channel UC1NFFogiT88Uhmidrz8Ypnw` |
-| J. Kenji López-Alt | @JKenjiLopezAlt | `UCqqJQ_cXSat0KIAVfIfKkVA` | `channel UCqqJQ_cXSat0KIAVfIfKkVA` |
-| Joshua Weissman | @JoshuaWeissman | `UChBEbMKI1eCcejTtmI32UEw` | `channel UChBEbMKI1eCcejTtmI32UEw` |
-| Joshua Weissman Recipes | @JoshuaWeissmanRecipes | `UCUAg71CJEvFdOnujmep1Svw` | `channel UCUAg71CJEvFdOnujmep1Svw` |
+| That Dude Can Cook | @thatdudecancook | `UC19OYOBqkgVqgTIQxbsPdlw` | `npx tsx src/index.ts channel UC19OYOBqkgVqgTIQxbsPdlw` |
+| Brad Leone | @bradleone | `UC1NFFogiT88Uhmidrz8Ypnw` | `npx tsx src/index.ts channel UC1NFFogiT88Uhmidrz8Ypnw` |
+| J. Kenji López-Alt | @JKenjiLopezAlt | `UCqqJQ_cXSat0KIAVfIfKkVA` | `npx tsx src/index.ts channel UCqqJQ_cXSat0KIAVfIfKkVA` |
+| Joshua Weissman | @JoshuaWeissman | `UChBEbMKI1eCcejTtmI32UEw` | `npx tsx src/index.ts channel UChBEbMKI1eCcejTtmI32UEw` |
+| Joshua Weissman Recipes | @JoshuaWeissmanRecipes | `UCUAg71CJEvFdOnujmep1Svw` | `npx tsx src/index.ts channel UCUAg71CJEvFdOnujmep1Svw` |
 
 ### Funny Stuff
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| MagicTheNoah | @MagicTheNoah | `UCYqsJbDDngvxb_rbHzHpYGA` | `channel UCYqsJbDDngvxb_rbHzHpYGA` |
-| Gianmarco Soresi | @GianmarcoSoresi | `UCCYWagpWEequTwx61dYGT0w` | `channel UCCYWagpWEequTwx61dYGT0w` |
-| Taskmaster | @Taskmaster | `UCT5C7yaO3RVuOgwP8JVAujQ` | `channel UCT5C7yaO3RVuOgwP8JVAujQ` |
+| MagicTheNoah | @MagicTheNoah | `UCYqsJbDDngvxb_rbHzHpYGA` | `npx tsx src/index.ts channel UCYqsJbDDngvxb_rbHzHpYGA` |
+| Gianmarco Soresi | @GianmarcoSoresi | `UCCYWagpWEequTwx61dYGT0w` | `npx tsx src/index.ts channel UCCYWagpWEequTwx61dYGT0w` |
+| Taskmaster | @Taskmaster | `UCT5C7yaO3RVuOgwP8JVAujQ` | `npx tsx src/index.ts channel UCT5C7yaO3RVuOgwP8JVAujQ` |
 
 ### Soccer Coaching
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| Coach Rory Soccer | @CoachRorySoccer | `UCxjqkVEAAQfWN2iW1oEaXTw` | `channel UCxjqkVEAAQfWN2iW1oEaXTw` |
+| Coach Rory Soccer | @CoachRorySoccer | `UCxjqkVEAAQfWN2iW1oEaXTw` | `npx tsx src/index.ts channel UCxjqkVEAAQfWN2iW1oEaXTw` |
 
 ### Pokémon GO
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| DanOttawa | @DanOttawa | `UCqoEBvsSaKWhw8KbPPWOLEg` | `channel UCqoEBvsSaKWhw8KbPPWOLEg` |
+| DanOttawa | @DanOttawa | `UCqoEBvsSaKWhw8KbPPWOLEg` | `npx tsx src/index.ts channel UCqoEBvsSaKWhw8KbPPWOLEg` |
 
 ### Minecraft
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| BDoubleO | @bdoubleo | `UClu2e7S8atp6tG2galK9hgg` | `channel UClu2e7S8atp6tG2galK9hgg` |
-| EthosLab | @EthosLab | `UCFKDEp9si4RmHFWJW1vYsMA` | `channel UCFKDEp9si4RmHFWJW1vYsMA` |
-| wattlesplays | @wattlesplays | `UCsuKgiVb2KJ2sZdrrwoAqsA` | `channel UCsuKgiVb2KJ2sZdrrwoAqsA` |
-| xisumavoid | @xisumavoid | `UCU9pX8hKcrx06XfOB-VQLdw` | `channel UCU9pX8hKcrx06XfOB-VQLdw` |
-| Hermitcraft Recap | @TheHermitcraftRecap | `UC32w6uX5qtmUtF4QQQ2PKaQ` | `channel UC32w6uX5qtmUtF4QQQ2PKaQ` |
+| BDoubleO | @bdoubleo | `UClu2e7S8atp6tG2galK9hgg` | `npx tsx src/index.ts channel UClu2e7S8atp6tG2galK9hgg` |
+| EthosLab | @EthosLab | `UCFKDEp9si4RmHFWJW1vYsMA` | `npx tsx src/index.ts channel UCFKDEp9si4RmHFWJW1vYsMA` |
+| wattlesplays | @wattlesplays | `UCsuKgiVb2KJ2sZdrrwoAqsA` | `npx tsx src/index.ts channel UCsuKgiVb2KJ2sZdrrwoAqsA` |
+| xisumavoid | @xisumavoid | `UCU9pX8hKcrx06XfOB-VQLdw` | `npx tsx src/index.ts channel UCU9pX8hKcrx06XfOB-VQLdw` |
+| Hermitcraft Recap | @TheHermitcraftRecap | `UC32w6uX5qtmUtF4QQQ2PKaQ` | `npx tsx src/index.ts channel UC32w6uX5qtmUtF4QQQ2PKaQ` |
 
 ### FC 26 / Football Games
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| NaNNiK Gaming | @NaNNiKGaming | `UCw0iQFZw-sVk92WQOmq4Kkw` | `channel UCw0iQFZw-sVk92WQOmq4Kkw` |
-| ProRecoil | @officialprorecoil | *(run `resolve @officialprorecoil`)* | `resolve @officialprorecoil` |
+| NaNNiK Gaming | @NaNNiKGaming | `UCw0iQFZw-sVk92WQOmq4Kkw` | `npx tsx src/index.ts channel UCw0iQFZw-sVk92WQOmq4Kkw` |
+| ProRecoil | @officialprorecoil | *(run `resolve @officialprorecoil`)* | `npx tsx src/index.ts resolve @officialprorecoil` |
 
 ### Society & Political Commentary
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| The Majority Report | @TheMajorityReport | `UC-3jIAlnQmbbVMV6gR7K8aQ` | `channel UC-3jIAlnQmbbVMV6gR7K8aQ` |
-| Last Week Tonight | @LastWeekTonight | `UC3XTzVzaHQEd30rQbuvCtTQ` | `channel UC3XTzVzaHQEd30rQbuvCtTQ` |
+| The Majority Report | @TheMajorityReport | `UC-3jIAlnQmbbVMV6gR7K8aQ` | `npx tsx src/index.ts channel UC-3jIAlnQmbbVMV6gR7K8aQ` |
+| Last Week Tonight | @LastWeekTonight | `UC3XTzVzaHQEd30rQbuvCtTQ` | `npx tsx src/index.ts channel UC3XTzVzaHQEd30rQbuvCtTQ` |
 
 ### A Category of His Own
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| Mark Rober | @MarkRober | `UCY1kMZp36IQSyNx_9h4mpCg` | `channel UCY1kMZp36IQSyNx_9h4mpCg` |
+| Mark Rober | @MarkRober | `UCY1kMZp36IQSyNx_9h4mpCg` | `npx tsx src/index.ts channel UCY1kMZp36IQSyNx_9h4mpCg` |
 
 ### Self Promotion (but not worth doing)
 
 | Channel | @Handle | Channel ID | Command |
 |---------|---------|-----------|---------|
-| imsotrash239 | @imsotrash239 | `UCYoICL--E3Gk7lBB0aZVgLA` | `channel UCYoICL--E3Gk7lBB0aZVgLA` |
+| imsotrash239 | @imsotrash239 | `UCYoICL--E3Gk7lBB0aZVgLA` | `npx tsx src/index.ts channel UCYoICL--E3Gk7lBB0aZVgLA` |
 
 ---
 
