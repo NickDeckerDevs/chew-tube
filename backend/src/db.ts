@@ -1,9 +1,21 @@
+/*
+5/22/2026 - nick decker | phase 1 task work
+ADDED
+- `getDbStats()` export returning DB path and row count
+- Auto-creates `data/` directory on module load via `fs.mkdirSync`
+
+CHANGED
+- Added `fs` import
+*/
+
 import Database from "better-sqlite3";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "../../data/summaries.db");
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 export type VideoMeta = {
   id: string;
@@ -72,6 +84,12 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     worthWatchingReason: summary.worthWatchingReason,
     summarizedAt: new Date().toISOString(),
   });
+}
+
+export function getDbStats(): { path: string; rowCount: number } {
+  const db = getDb();
+  const row = db.prepare("SELECT COUNT(*) as count FROM videos").get() as { count: number };
+  return { path: DB_PATH, rowCount: row.count };
 }
 
 export function listVideos(limit = 20): StoredVideo[] {

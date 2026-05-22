@@ -1,3 +1,12 @@
+/*
+5/22/2026 - nick decker | phase 1 task work
+ADDED
+- `getCategories(regionCode)` — fetches assignable YouTube video categories sorted by ID
+- `resolveHandle(handle)` — resolves a @handle to its channel ID via the YouTube API
+- `extractPlaylistId(input)` — parses a playlist ID out of a full YouTube URL or returns input as-is
+- `getPlaylistVideos(playlistId, n)` — fetches up to n videos from a playlist
+*/
+
 import { youtube } from "@googleapis/youtube";
 import type { VideoMeta } from "./db.js";
 
@@ -5,6 +14,57 @@ function getYouTube() {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) throw new Error("YOUTUBE_API_KEY is not set in .env");
   return youtube({ version: "v3", auth: apiKey });
+}
+
+export async function getCategories(
+  regionCode = "US"
+): Promise<{ id: string; title: string }[]> {
+  const yt = getYouTube();
+  const res = await yt.videoCategories.list({
+    part: ["snippet"],
+    regionCode,
+  });
+  return (res.data.items ?? [])
+    .filter((item) => item.snippet?.assignable)
+    .map((item) => ({ id: item.id ?? "", title: item.snippet?.title ?? "" }))
+    .sort((a, b) => parseInt(a.id) - parseInt(b.id));
+}
+
+export async function resolveHandle(handle: string): Promise<string | null> {
+  const yt = getYouTube();
+  const h = handle.startsWith("@") ? handle.slice(1) : handle;
+  const res = await yt.channels.list({ part: ["id"], forHandle: h });
+  return res.data.items?.[0]?.id ?? null;
+}
+
+export function extractPlaylistId(input: string): string {
+  try {
+    const url = new URL(input);
+    return url.searchParams.get("list") ?? input;
+  } catch {
+    return input;
+  }
+}
+
+export async function getPlaylistVideos(
+  playlistId: string,
+  n = 5
+): Promise<VideoMeta[]> {
+  const yt = getYouTube();
+  const res = await yt.playlistItems.list({
+    part: ["snippet"],
+    playlistId,
+    maxResults: n,
+  });
+  return (res.data.items ?? [])
+    .filter((item) => item.snippet?.resourceId?.videoId)
+    .map((item) => ({
+      id: item.snippet!.resourceId!.videoId!,
+      title: item.snippet?.title ?? "(no title)",
+      channel: item.snippet?.videoOwnerChannelTitle ?? item.snippet?.channelTitle ?? "(unknown)",
+      publishedAt: item.snippet?.publishedAt ?? "",
+      description: item.snippet?.description ?? "",
+    }));
 }
 
 export async function getTrending(
