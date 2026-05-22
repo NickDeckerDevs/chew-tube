@@ -1,4 +1,14 @@
 <!--
+5/22/2026 - nick decker | phase 2 doc catch-up
+ADDED
+- "Running the Digest" section with `npm run digest`, `npm run test-email`, `npm run backfill`, `npm run fix-titles`
+- `RESEND_API_KEY` and `DIGEST_TO_EMAIL` to the env setup section
+- `What It Does` bullet for email digest delivery via Resend
+
+CHANGED
+- Phase 2 marked ✅ COMPLETE in Roadmap (was shown as future)
+- Phase 3 description updated to reflect email is done; only frontend remains
+
 5/22/2026 - nick decker | phase 1 task work
 ADDED
 - Channel List section with categorized channels, @handles, and resolved IDs
@@ -29,6 +39,7 @@ No more sitting through 45-minute videos to extract three useful sentences. Tube
 - [What It Does](#-what-it-does)
 - [Roadmap](#-roadmap)
 - [Installation](#-installation)
+- [Running the Digest](#-running-the-digest)
 - [Usage](#-usage)
 - [Channel List](#-channel-list)
 - [The Person Behind the Digestion](#-the-person-behind-the-digestion)
@@ -53,8 +64,9 @@ No more sitting through 45-minute videos to extract three useful sentences. Tube
   - A worth-watching verdict with a reason
 - **Store everything locally** in SQLite — idempotent, so re-running never double-processes a video.
 - **Pretty CLI output** — color-coded results printed right in your terminal.
+- **Email digest delivery** — sends a daily HTML digest via Resend. Each video gets a thumbnail, short summary, verdict, one-liner, and key takeaways. Runs automatically via GitHub Actions at 7am CT.
 
-It's a CLI tool for now. You run it, it processes, you read. No frills, no UI, just fiber-rich content right to the terminal.
+It works both as a CLI tool and as a daily automated digest. Run it manually, or let GitHub Actions chew for you every morning.
 
 ---
 
@@ -62,16 +74,18 @@ It's a CLI tool for now. You run it, it processes, you read. No frills, no UI, j
 
 The long-term vision is a full pipeline — from raw YouTube feed to inbox-ready daily digest.
 
-**Phase 2 — Personalization & Automation**
-- Config file for managing your own channel list and topic keywords
-- Scheduled daily runs (cron / cloud scheduler)
-- HTML email digest via Resend — one section per video, delivered to your inbox every morning
+**Phase 2 — Personalization & Automation ✅ COMPLETE**
+- `config.json` for managing your own channel list and topic keywords
+- Scheduled daily runs via GitHub Actions cron (7am CT)
+- HTML email digest via Resend — thumbnail, short summary, verdict, one-liner, and key takeaways per video
+- Automated runs idempotent — re-running never re-processes already-summarized videos
 
-**Phase 3 — Frontend**
+**Phase 3 — Frontend (next)**
 - Web UI to manage channels, topics, and preferences
 - Browse and search past summaries
 - Mark videos as watched or interesting (feeds future prioritization)
 - Full settings panel (email, send time, video count, etc.)
+- Video title links in email will point to the frontend summary page once it exists
 
 ---
 
@@ -85,6 +99,7 @@ The long-term vision is a full pipeline — from raw YouTube feed to inbox-ready
   2. Create a project → APIs & Services → Enable **YouTube Data API v3**
   3. Credentials → Create API Key
 - An **Anthropic API key** — [get one here](https://console.anthropic.com)
+- A **Resend API key** — [sign up at resend.com](https://resend.com) (3,000 free emails/month)
 
 ### Setup
 
@@ -105,7 +120,42 @@ Open `backend/.env` and fill in your keys:
 ```
 YOUTUBE_API_KEY=your_youtube_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
+RESEND_API_KEY=your_resend_key_here
+DIGEST_TO_EMAIL=you@example.com
 ```
+
+---
+
+## 📬 Running the Digest
+
+Run from the `backend/` directory:
+
+```bash
+# Run the full daily digest (reads config.json, 24h cutoff, sends email)
+npm run digest
+
+# Send a test email with 5 random videos from the DB
+npm run test-email
+
+# Backfill thumbnail_url + short_summary for existing DB rows
+npm run backfill
+
+# Fix HTML entities in stored title/channel fields
+npm run fix-titles
+```
+
+The digest reads `config.json` at the project root, pulls videos from configured channels and topics published in the last 24 hours, summarizes any new ones, and emails the results to `DIGEST_TO_EMAIL`.
+
+**GitHub Actions** runs `npm run digest` automatically at 7am CT daily. Set these secrets in your repo (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|--------|-------|
+| `YOUTUBE_API_KEY` | from Google Cloud Console |
+| `ANTHROPIC_API_KEY` | from Anthropic Console |
+| `RESEND_API_KEY` | from Resend dashboard |
+| `DIGEST_TO_EMAIL` | your email address |
+
+Manual runs are available from the Actions tab via `workflow_dispatch`.
 
 ---
 
