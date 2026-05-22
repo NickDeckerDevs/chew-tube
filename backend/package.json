@@ -7,14 +7,16 @@
     "start": "tsx src/index.ts",
     "digest": "tsx src/digest.ts",
     "test-email": "tsx src/test-email.ts",
-    "backfill": "tsx src/backfill.ts"
+    "backfill": "tsx src/backfill.ts",
+    "fix-titles": "tsx src/fix-titles.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
-    "resend": "^4.0.0",
     "@googleapis/youtube": "^9.0.0",
     "better-sqlite3": "^9.6.0",
     "dotenv": "^16.4.0",
+    "marked": "^18.0.4",
+    "resend": "^4.0.0",
     "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {

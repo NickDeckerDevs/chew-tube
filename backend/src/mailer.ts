@@ -14,10 +14,18 @@ ADDED
 - Thumbnail image (320×180) rendered above title when `thumbnailUrl` is present
 - Short summary (2-3 sentences) displayed below channel name, above one-liner
 - TODO (Phase 3): replace video title link with a link to the Tube Chew frontend summary page once the frontend exists
+
+5/22/2026 - nick decker | db utility + markdown rendering
+CHANGED
+- `decodeHtml` moved to shared `utils.ts`, imported from there
+- `esc()` used only for title/channel (plain strings that should never have markdown)
+- `md()` replaces `esc()` for all prose fields (shortSummary, oneLiner, worthWatchingReason, takeaway items) — converts markdown to email-safe HTML using `marked` with a custom renderer that inlines styles on headings
 */
 
+import { marked } from "marked";
 import { Resend } from "resend";
 import type { StoredVideo } from "./db.js";
+import { decodeHtml } from "./utils.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -65,13 +73,13 @@ function buildVideoSection(video: StoredVideo): string {
   const verdictText = video.worthWatching ? "Worth watching" : "Skip it";
   const verdictIcon = video.worthWatching ? "✓" : "✗";
   const takeaways = video.keyTakeaways
-    .map((t) => `<li style="margin-bottom: 6px;">${esc(t)}</li>`)
+    .map((t) => `<li style="margin-bottom: 6px;">${md(t)}</li>`)
     .join("\n    ");
   const thumbnail = video.thumbnailUrl
     ? `<img src="${video.thumbnailUrl}" width="320" alt="" style="width:100%;max-width:320px;height:auto;display:block;margin-bottom:12px;border-radius:4px;">`
     : "";
   const shortSummaryHtml = video.shortSummary
-    ? `<p style="margin: 0 0 10px 0; line-height: 1.6;">${esc(video.shortSummary)}</p>`
+    ? `<div style="margin: 0 0 10px 0; line-height: 1.6;">${md(video.shortSummary)}</div>`
     : "";
 
   return `<div style="margin-bottom: 28px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -81,27 +89,25 @@ function buildVideoSection(video: StoredVideo): string {
   </h2>
   <p style="color: #666; font-size: 13px; margin: 0 0 10px 0;">${esc(video.channel)}</p>
   ${shortSummaryHtml}
-  <p style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${esc(video.oneLiner)}</p>
+  <div style="font-style: italic; color: #555; margin: 0 0 14px 0; line-height: 1.5;">${md(video.oneLiner)}</div>
   <ul style="margin: 0 0 14px 0; padding-left: 20px; line-height: 1.5;">
     ${takeaways}
   </ul>
   <p style="margin: 0; font-size: 14px;">
     <span style="color: ${verdictColor}; font-weight: bold;">${verdictIcon} ${verdictText}</span>
-    &mdash; ${esc(video.worthWatchingReason)}
+    &mdash; ${md(video.worthWatchingReason)}
   </p>
 </div>`;
 }
 
-function decodeHtml(str: string): string {
-  return (str ?? "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&apos;/g, "'");
-}
+marked.use({
+  renderer: {
+    heading({ text, depth }: { text: string; depth: number }): string {
+      const size = depth <= 2 ? "16px" : "14px";
+      return `<p style="font-size:${size};font-weight:bold;margin:8px 0 4px 0;">${text}</p>`;
+    },
+  },
+});
 
 function esc(str: string): string {
   return decodeHtml(str)
@@ -109,4 +115,8 @@ function esc(str: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function md(str: string): string {
+  return (marked.parse(decodeHtml(str ?? "")) as string).trim();
 }

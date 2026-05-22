@@ -15,6 +15,11 @@ ADDED
 CHANGED
 - Schema migration: `thumbnail_url TEXT` and `short_summary TEXT` columns added via `ALTER TABLE` (nullable, idempotent)
 - `saveVideo` and `listVideos` updated to include both new fields
+
+5/22/2026 - nick decker | db utility
+ADDED
+- `UPDATEABLE_COLUMNS` const list — exhaustive set of columns that may be updated after insert
+- `updateVideoColumn(id, column, value)` — type-safe single-column UPDATE; column name validated against the allowlist to prevent SQL injection
 */
 
 import Database from "better-sqlite3";
@@ -130,6 +135,18 @@ export function getRandomVideos(n = 5): StoredVideo[] {
     worthWatchingReason: r.worth_watching_reason as string,
     summarizedAt: r.summarized_at as string,
   }));
+}
+
+const UPDATEABLE_COLUMNS = [
+  "title", "channel", "description",
+  "thumbnail_url", "one_liner", "short_summary", "worth_watching_reason",
+] as const;
+
+type UpdateableColumn = typeof UPDATEABLE_COLUMNS[number];
+
+export function updateVideoColumn(id: string, column: UpdateableColumn, value: string | null): void {
+  const db = getDb();
+  db.prepare(`UPDATE videos SET ${column} = ? WHERE id = ?`).run(value, id);
 }
 
 export function listVideos(limit = 20): StoredVideo[] {

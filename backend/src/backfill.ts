@@ -13,6 +13,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import { decodeHtml } from "./utils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "../../data/summaries.db");

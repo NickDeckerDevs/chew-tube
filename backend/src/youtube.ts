@@ -17,17 +17,7 @@ CHANGED
 
 import { youtube } from "@googleapis/youtube";
 import type { VideoMeta } from "./db.js";
-
-function decodeHtml(str: string): string {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&apos;/g, "'");
-}
+import { decodeHtml } from "./utils.js";
 
 function getYouTube() {
   const apiKey = process.env.YOUTUBE_API_KEY;
