@@ -4,3 +4,4 @@ backend/data/*.db
 data/*.db
 dist/
 .claude/
+backend/persona-profile.json

@@ -1,4 +1,8 @@
 /*
+5/22/2026 - nick decker | persona profile builder
+ADDED
+- `getUploadsPlaylistId(channelId)` — fetches a channel's uploads playlist ID via channels.list (1 quota unit vs 100 for search.list); used by build-persona to avoid blowing search quota
+
 5/22/2026 - nick decker | verdict algorithm v2
 ADDED
 - `getTopComments(videoId, n)` — fetches top n comments by like count via YouTube commentThreads.list API
@@ -85,6 +89,12 @@ export async function getPlaylistVideos(
       description: decodeHtml(item.snippet?.description ?? ""),
       thumbnailUrl: (item.snippet?.thumbnails as { medium?: { url?: string } } | null)?.medium?.url ?? undefined,
     }));
+}
+
+export async function getUploadsPlaylistId(channelId: string): Promise<string | null> {
+  const yt = getYouTube();
+  const res = await yt.channels.list({ part: ["contentDetails"], id: [channelId] });
+  return res.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
 }
 
 export async function getTopComments(videoId: string, n = 2): Promise<TopComment[]> {

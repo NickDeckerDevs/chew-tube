@@ -43,7 +43,8 @@ const persona = config.settings.persona ?? "a general viewer";
 
 async function processVideo(
   video: VideoMeta,
-  sourceType: SourceType
+  sourceType: SourceType,
+  channelLabel?: string
 ): Promise<StoredVideo | null> {
   if (!video.id) return null;
 
@@ -61,7 +62,7 @@ async function processVideo(
   console.log(` ok (${result.estimatedTokens.toLocaleString()} tokens)`);
 
   process.stdout.write(`  Summarizing...`);
-  const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType);
+  const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType, channelLabel);
   console.log(" done");
 
   process.stdout.write(`  Fetching comments...`);
@@ -106,7 +107,7 @@ async function main(): Promise<void> {
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
     for (const video of fresh) {
-      const stored = await processVideo(video, "channel");
+      const stored = await processVideo(video, "channel", ch.label);
       if (stored) newVideos.push(stored);
     }
   }

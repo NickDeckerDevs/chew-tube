@@ -27,6 +27,8 @@ CHANGED
 import type { Summary } from "./db.js";
 import { splitTranscript } from "./transcript.js";
 import { HAIKU_MODEL, getAnthropicClient } from "./utils.js";
+import { loadPersonaProfile } from "./build-persona.js";
+import type { PersonaProfile } from "./build-persona.js";
 import type Anthropic from "@anthropic-ai/sdk";
 
 export type SourceType = "channel" | "topic";
@@ -100,16 +102,36 @@ If skipping due to filler or repeated off-topic content, note it so the viewer c
   },
 };
 
-function buildSystemPrompt(persona: string, sourceType: SourceType): string {
+function buildInterestContext(profile: PersonaProfile): string {
+  const categoryBlock = profile.categories
+    .map((cat) => `**${cat.name}** (${cat.channels.join(", ")})\n${cat.summary}`)
+    .join("\n\n");
+
+  return `The viewer's revealed interests, inferred from the channels they follow:
+
+${categoryBlock}`;
+}
+
+function buildSystemPrompt(persona: string, sourceType: SourceType, channelLabel?: string): string {
+  const profile = loadPersonaProfile();
+
   const sourceContext = sourceType === "channel"
     ? "This video came from a channel the viewer explicitly subscribed to, so they have existing interest in this creator's content. Raise the bar for a skip verdict — if the content is decent and on-topic for the persona, lean toward watch or conditional."
     : "This video came from a keyword/topic search, so relevance to the persona is less guaranteed. Apply normal verdict criteria.";
 
+  const channelContext = channelLabel && profile?.channels[channelLabel]
+    ? `\nAbout this specific channel (${channelLabel}): ${profile.channels[channelLabel].summary}`
+    : "";
+
+  const interestContext = profile
+    ? `\n\n${buildInterestContext(profile)}`
+    : "";
+
   return `You are a sharp video curator summarizing YouTube content for a specific viewer.
 
-Viewer persona: ${persona}
+Viewer's stated persona: ${persona}${interestContext}
 
-${sourceContext}
+${sourceContext}${channelContext}
 
 Your job is to produce a concise structured summary and an honest verdict. The verdict should be genuinely useful — not reflexively positive. If a video is filler-heavy, clickbait, or irrelevant to this viewer, say so clearly and specifically. If a channel repeatedly produces content that doesn't serve this viewer, flag it in the verdict_detail so they can decide whether to keep following.`;
 }
@@ -169,7 +191,7 @@ async function summarizeChunks(
   client: Anthropic,
   title: string,
   chunks: string[],
-  systemPrompt: string
+  systemPrompt: string,
 ): Promise<Summary> {
   const chunkSummaries: string[] = [];
   for (let i = 0; i < chunks.length; i++) {
@@ -202,10 +224,11 @@ export async function summarize(
   transcript: string,
   chunked: boolean,
   persona = "a general viewer",
-  sourceType: SourceType = "topic"
+  sourceType: SourceType = "topic",
+  channelLabel?: string
 ): Promise<Summary> {
   const client = getAnthropicClient();
-  const systemPrompt = buildSystemPrompt(persona, sourceType);
+  const systemPrompt = buildSystemPrompt(persona, sourceType, channelLabel);
 
   if (chunked) {
     const chunks = splitTranscript(transcript);

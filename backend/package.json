@@ -10,7 +10,9 @@
     "backfill": "tsx src/backfill.ts",
     "fix-titles": "tsx src/fix-titles.ts",
     "send-before": "tsx src/send-before.ts",
-    "rescore": "tsx src/rescore.ts"
+    "rescore": "tsx src/rescore.ts",
+    "test-topics": "tsx src/test-topics.ts",
+    "build-persona": "tsx src/build-persona.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
