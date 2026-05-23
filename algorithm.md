@@ -67,9 +67,9 @@ After summarization, top 2 comments by relevance are fetched via `commentThreads
 
 `callSummaryTool` in `summarizer.ts` catches 429 responses and retries up to 3 times with exponential backoff (60s × attempt). The queue worker adds a 15-second fixed delay between Claude calls (~40k tokens/min, safely under the 50k/min limit).
 
-### Category Preferences (stored — not yet used in scoring)
+### Category Preferences (live as of 2026-05-23)
 
-`config.json` has `categoryPreferences` — a 1-5 interest score for each of the 15 YouTube content categories. Currently stored but not passed to Claude or used in scoring. Autos is 1★ but car restoration videos are still scoring `watch` — this is the clearest symptom that this signal needs to reach the verdict.
+`config.json` has `categoryPreferences` — a 1-5 interest score for each of the 15 YouTube content categories. Now wired into the Claude system prompt. Each video's `categoryId` resolves to its preference score, which is injected as explicit guidance — score 1 instructs Claude to default toward skip, score 5 instructs it to only skip for clear clickbait. Resolves from `video.categoryId` first, falls back to source-level interest score. Active in digest, queue-work, and algo-test.
 
 ```json
 "categoryPreferences": {

@@ -345,6 +345,7 @@ See `algorithm.md` for full design. Items completed this session:
 - [x] Shorts filter in `queue-fill.ts` (was already in `digest.ts`)
 - [x] Queue architecture — `queue-fill` + `queue-work` producer/worker split
 - [x] Algo-test framework — 24 sources, dated results, HTML report viewer
+- [x] Wire `categoryPreferences` into summarizer — category score (1–5) now injected into Claude system prompt per video; resolves from video's actual `categoryId` with source-level interestScore as fallback; affects digest, queue-work, and algo-test
 - [ ] Integer scoring — parallel to Claude verdict, both shown in email
 - [ ] Music genre scoring path — own logic, no transcript required
 - [ ] Negative signals (second −10) — deferred until post-use observation
