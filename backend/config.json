@@ -34,6 +34,34 @@
     "Simple recipe",
     "Donald Trump Iran"
   ],
+  "musicPreferences": {
+    "genres": [
+      "Electronic music",
+      "Hip hop music",
+      "Soul music",
+      "Independent music"
+    ],
+    "subGenres": [
+      "Electro-Soul",
+      "Glitch-Hop",
+      "Trip-Hop",
+      "Future Funk",
+      "Indietronica",
+      "Future Bass",
+      "Downtempo",
+      "Chillwave",
+      "World Bass",
+      "Tribal Bass",
+      "Neo-Trip-Hop",
+      "Trap"
+    ],
+    "artists": [
+      "Artifakts",
+      "Clozee",
+      "Pretty Lights",
+      "RL Grime"
+    ]
+  },
   "settings": {
     "videosPerChannel": 20,
     "videosPerTopic": 3,
