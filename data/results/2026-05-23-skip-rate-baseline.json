@@ -1,0 +1,238 @@
+{
+  "testName": "skip-rate-baseline",
+  "runAt": "2026-05-23T14:50:20.696Z",
+  "completedAt": "2026-05-23T17:47:20.748Z",
+  "persona": "developer soccer dad with a 9 year old that loves to play video games, cook, and go to music festivals",
+  "sources": [
+    {
+      "label": "US Trending — All",
+      "sourceType": "topic",
+      "processed": 1,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 1
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Autos & Vehicles",
+      "sourceType": "topic",
+      "processed": 2,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 2
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Comedy",
+      "sourceType": "topic",
+      "processed": 1,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 1
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Entertainment",
+      "sourceType": "topic",
+      "processed": 1,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 1
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Gaming",
+      "sourceType": "topic",
+      "processed": 3,
+      "verdicts": {
+        "watch": 2,
+        "conditional": 0,
+        "skip": 1
+      },
+      "skipRate": 0.3333333333333333
+    },
+    {
+      "label": "Trending — Howto & Style",
+      "sourceType": "topic",
+      "processed": 3,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 3
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Music",
+      "sourceType": "topic",
+      "processed": 1,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 1
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — News & Politics",
+      "sourceType": "topic",
+      "processed": 5,
+      "verdicts": {
+        "watch": 3,
+        "conditional": 1,
+        "skip": 1
+      },
+      "skipRate": 0.2
+    },
+    {
+      "label": "Trending — People & Blogs",
+      "sourceType": "topic",
+      "processed": 5,
+      "verdicts": {
+        "watch": 0,
+        "conditional": 0,
+        "skip": 5
+      },
+      "skipRate": 1
+    },
+    {
+      "label": "Trending — Pets & Animals",
+      "sourceType": "topic",
+      "processed": 15,
+      "verdicts": {
+        "watch": 4,
+        "conditional": 0,
+        "skip": 11
+      },
+      "skipRate": 0.7333333333333333
+    },
+    {
+      "label": "Trending — Science & Technology",
+      "sourceType": "topic",
+      "processed": 47,
+      "verdicts": {
+        "watch": 25,
+        "conditional": 1,
+        "skip": 21
+      },
+      "skipRate": 0.44680851063829785
+    },
+    {
+      "label": "Trending — Sports",
+      "sourceType": "topic",
+      "processed": 45,
+      "verdicts": {
+        "watch": 5,
+        "conditional": 0,
+        "skip": 40
+      },
+      "skipRate": 0.8888888888888888
+    },
+    {
+      "label": "AI coding tools",
+      "sourceType": "topic",
+      "processed": 49,
+      "verdicts": {
+        "watch": 41,
+        "conditional": 1,
+        "skip": 7
+      },
+      "skipRate": 0.14285714285714285
+    },
+    {
+      "label": "Soccer training",
+      "sourceType": "topic",
+      "processed": 32,
+      "verdicts": {
+        "watch": 14,
+        "conditional": 3,
+        "skip": 15
+      },
+      "skipRate": 0.46875
+    },
+    {
+      "label": "Quick dinner recipes",
+      "sourceType": "topic",
+      "processed": 38,
+      "verdicts": {
+        "watch": 32,
+        "conditional": 2,
+        "skip": 4
+      },
+      "skipRate": 0.10526315789473684
+    },
+    {
+      "label": "Indie game reviews",
+      "sourceType": "topic",
+      "processed": 49,
+      "verdicts": {
+        "watch": 45,
+        "conditional": 2,
+        "skip": 2
+      },
+      "skipRate": 0.04081632653061224
+    },
+    {
+      "label": "Music festivals",
+      "sourceType": "topic",
+      "processed": 40,
+      "verdicts": {
+        "watch": 10,
+        "conditional": 9,
+        "skip": 21
+      },
+      "skipRate": 0.525
+    },
+    {
+      "label": "Knitting tutorials",
+      "sourceType": "topic",
+      "processed": 50,
+      "verdicts": {
+        "watch": 1,
+        "conditional": 1,
+        "skip": 48
+      },
+      "skipRate": 0.96
+    },
+    {
+      "label": "Car restoration",
+      "sourceType": "topic",
+      "processed": 40,
+      "verdicts": {
+        "watch": 14,
+        "conditional": 1,
+        "skip": 25
+      },
+      "skipRate": 0.625
+    },
+    {
+      "label": "News commentary",
+      "sourceType": "topic",
+      "processed": 38,
+      "verdicts": {
+        "watch": 10,
+        "conditional": 3,
+        "skip": 25
+      },
+      "skipRate": 0.6578947368421053
+    }
+  ],
+  "totals": {
+    "processed": 465,
+    "watch": 206,
+    "conditional": 24,
+    "skip": 235,
+    "skipRate": 0.5053763440860215
+  },
+  "queueStats": {
+    "done": 465
+  }
+}
