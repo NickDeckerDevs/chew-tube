@@ -1,4 +1,10 @@
 /*
+5/22/2026 - nick decker | quota optimization
+CHANGED
+- Channel video fetching switched from search.list (100 units/channel) to uploads playlist
+  via getUploadsPlaylistId + getPlaylistVideos (2 units/channel) — ~98% quota reduction
+  for channel fetches; search.list kept as fallback if uploads playlist unavailable
+
 5/22/2026 - nick decker | verdict algorithm v2
 CHANGED
 - `DigestConfig.settings` now includes optional `persona` string — passed to `summarize()`
@@ -18,7 +24,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getChannelVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
+import { getUploadsPlaylistId, getPlaylistVideos, getChannelVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
@@ -102,7 +108,10 @@ async function main(): Promise<void> {
     if (!channelId) continue;
 
     console.log(`\nChannel: ${ch.label}`);
-    const videos = await getChannelVideos(channelId, config.settings.videosPerChannel);
+    const uploadsId = await getUploadsPlaylistId(channelId);
+    const videos = uploadsId
+      ? await getPlaylistVideos(uploadsId, config.settings.videosPerChannel)
+      : await getChannelVideos(channelId, config.settings.videosPerChannel); // fallback if uploads playlist unavailable
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
