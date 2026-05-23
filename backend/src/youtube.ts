@@ -1,4 +1,17 @@
 /*
+5/23/2026 - nick decker | topic label catalogue
+CHANGED
+- `getVideoSignals()` calls `upsertTopicLabels` after building the out map, passing each decoded label with its source Wikipedia URL
+- `getTrending()` calls `upsertTopicLabels` after mapping items, same pattern
+
+5/23/2026 - nick decker | category signals
+ADDED
+- `getVideoSignals(ids)` — batch-fetches snippet + topicDetails for up to 50 video IDs; returns map of id → { categoryId, topicCategories }; topicCategories decoded from Wikipedia URLs (split on /wiki/, decode URI component, replace underscores with spaces)
+- `getVideoSignals` exported for use by digest.ts, queue-fill.ts, algo-test.ts
+
+CHANGED
+- `getTrending()` now requests `topicDetails` in addition to `snippet`; maps `categoryId` from `snippet.categoryId` and `topicCategories` from `topicDetails` onto returned `VideoMeta` items
+
 5/23/2026 - nick decker | shorts filtering
 ADDED
 - `getVideoDurations(ids)` — batch-fetches contentDetails for up to 50 video IDs (1 quota unit); returns map of id → duration seconds
@@ -34,6 +47,7 @@ CHANGED
 
 import { youtube } from "@googleapis/youtube";
 import type { VideoMeta, TopComment } from "./db.js";
+import { upsertTopicLabels } from "./db.js";
 import { decodeHtml } from "./utils.js";
 
 export function getYouTube() {
@@ -125,6 +139,33 @@ export async function getTopComments(videoId: string, n = 2): Promise<TopComment
   }
 }
 
+export async function getVideoSignals(
+  ids: string[]
+): Promise<Record<string, { categoryId: string; topicCategories: string[] }>> {
+  if (ids.length === 0) return {};
+  const yt = getYouTube();
+  const res = await yt.videos.list({ part: ["snippet", "topicDetails"], id: ids });
+  const out: Record<string, { categoryId: string; topicCategories: string[] }> = {};
+  const allLabels: { label: string; url: string }[] = [];
+  for (const item of res.data.items ?? []) {
+    if (!item.id) continue;
+    const topicUrls: string[] = (item as any).topicDetails?.topicCategories ?? [];
+    const topicCategories = topicUrls.map((url: string) => {
+      const parts = url.split("/wiki/");
+      return decodeURIComponent(parts[parts.length - 1]).replace(/_/g, " ");
+    });
+    for (let i = 0; i < topicUrls.length; i++) {
+      allLabels.push({ label: topicCategories[i], url: topicUrls[i] });
+    }
+    out[item.id] = {
+      categoryId: item.snippet?.categoryId ?? "",
+      topicCategories,
+    };
+  }
+  upsertTopicLabels(allLabels);
+  return out;
+}
+
 export async function getTrending(
   n = 5,
   regionCode = "US",
@@ -132,13 +173,27 @@ export async function getTrending(
 ): Promise<VideoMeta[]> {
   const youtube = getYouTube();
   const res = await youtube.videos.list({
-    part: ["snippet"],
+    part: ["snippet", "topicDetails"],
     chart: "mostPopular",
     regionCode,
     videoCategoryId: categoryId,
     maxResults: n,
   });
-  return (res.data.items ?? []).map(itemToMeta);
+  const trendingLabels: { label: string; url: string }[] = [];
+  const items = (res.data.items ?? []).map((item) => {
+    const meta = itemToMeta(item);
+    const topicUrls: string[] = (item as any).topicDetails?.topicCategories ?? [];
+    meta.categoryId = item.snippet?.categoryId ?? undefined;
+    meta.topicCategories = topicUrls.map((url: string) => {
+      const parts = url.split("/wiki/");
+      const label = decodeURIComponent(parts[parts.length - 1]).replace(/_/g, " ");
+      trendingLabels.push({ label, url });
+      return label;
+    });
+    return meta;
+  });
+  upsertTopicLabels(trendingLabels);
+  return items;
 }
 
 export async function getChannelVideos(

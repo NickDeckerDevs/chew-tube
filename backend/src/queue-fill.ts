@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | shorts filter + category signals
+ADDED
+- Shorts filter: calls `getVideoDurations` on fetched video IDs before `fillSource`, filters out videos under 62 seconds via `isShort` — matching the pattern in digest.ts
+- Category signals: calls `getVideoSignals` on the same IDs in parallel with `getVideoDurations`, patches `categoryId` and `topicCategories` onto each `VideoMeta` before enqueuing
+- `getVideoDurations`, `isShort`, `getVideoSignals` imported from youtube.ts
+
 5/23/2026 - nick decker | queue producer
 ADDED
 - Fetches videos from all algo-test sources (trending, categories, keyword searches)
@@ -13,7 +19,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getTrending, searchVideos } from "./youtube.js";
+import { getTrending, searchVideos, getVideoDurations, isShort, getVideoSignals } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { isAlreadySummarized, enqueueVideo, getQueueStats } from "./db.js";
 import type { VideoMeta } from "./db.js";
@@ -77,6 +83,8 @@ async function fillSource(
       sourceType,
       sourceLabel: label,
       channelLabel,
+      categoryId: video.categoryId,
+      topicCategories: video.topicCategories,
     });
     queued++;
     process.stdout.write("+");
@@ -97,33 +105,43 @@ async function main(): Promise<void> {
 
   let totalQueued = 0;
 
-  // Overall trending
+  // Overall trending — getTrending already returns categoryId + topicCategories
   process.stdout.write(`[US Trending — All] `);
   try {
     const videos = await getTrending(50, "US");
-    const r = await fillSource("US Trending — All", videos, "topic");
+    const ids = videos.map((v) => v.id).filter(Boolean) as string[];
+    const durations = await getVideoDurations(ids);
+    const watchable = videos.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
+    const r = await fillSource("US Trending — All", watchable, "topic");
     totalQueued += r.queued;
     console.log(` → ${r.queued} queued, ${r.skipped} scored, ${r.noTranscript} no transcript`);
   } catch (err) { console.log(` skipped — ${(err as Error).message}`); }
 
-  // Per-category trending
+  // Per-category trending — getTrending already returns categoryId + topicCategories
   for (const [id, name] of Object.entries(YOUTUBE_CATEGORIES).sort(([,a],[,b]) => a.localeCompare(b))) {
     const label = `Trending — ${name}`;
     process.stdout.write(`[${label}] (${prefs[id] ?? 3}★) `);
     try {
       const videos = await getTrending(50, "US", id);
-      const r = await fillSource(label, videos, "topic");
+      const ids = videos.map((v) => v.id).filter(Boolean) as string[];
+      const durations = await getVideoDurations(ids);
+      const watchable = videos.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
+      const r = await fillSource(label, watchable, "topic");
       totalQueued += r.queued;
       console.log(` → ${r.queued} queued, ${r.skipped} scored, ${r.noTranscript} no transcript`);
     } catch (err) { console.log(` skipped — ${(err as Error).message}`); }
   }
 
-  // Keyword searches
+  // Keyword searches — searchVideos doesn't return topicDetails, fetch separately
   for (const src of SEARCH_SOURCES) {
     process.stdout.write(`[${src.label}] `);
     try {
       const videos = await searchVideos(src.query, 50);
-      const r = await fillSource(src.label, videos, "topic");
+      const ids = videos.map((v) => v.id).filter(Boolean) as string[];
+      const [durations, signals] = await Promise.all([getVideoDurations(ids), getVideoSignals(ids)]);
+      for (const v of videos) { if (v.id && signals[v.id]) { v.categoryId = signals[v.id].categoryId; v.topicCategories = signals[v.id].topicCategories; } }
+      const watchable = videos.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
+      const r = await fillSource(src.label, watchable, "topic");
       totalQueued += r.queued;
       console.log(` → ${r.queued} queued, ${r.skipped} scored, ${r.noTranscript} no transcript`);
     } catch (err) { console.log(` skipped — ${(err as Error).message}`); }

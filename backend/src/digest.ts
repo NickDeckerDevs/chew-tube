@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | category signals
+CHANGED
+- Imports `getVideoSignals` from youtube.ts
+- After fetching playlist videos, calls `getVideoSignals` on the same IDs as `getVideoDurations` (both use the same ID list) and patches `categoryId` and `topicCategories` onto each VideoMeta before processing
+- After fetching topic search videos, calls `getVideoSignals` on those IDs and patches signals before processing
+
 5/23/2026 - nick decker | uploads playlist ID enforcement + hideSkipped
 CHANGED
 - Removed runtime `getUploadsPlaylistId()` call — now uses `ch.uploadsPlaylistId` directly from config
@@ -32,7 +38,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments, getVideoDurations, isShort } from "./youtube.js";
+import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments, getVideoDurations, isShort, getVideoSignals } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
@@ -120,7 +126,9 @@ async function main(): Promise<void> {
     if (!ch.uploadsPlaylistId) throw new Error(`uploadsPlaylistId missing for channel "${ch.label}" — run build-persona to resolve`);
     const videos = await getPlaylistVideos(ch.uploadsPlaylistId, config.settings.videosPerChannel);
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
-    const durations = await getVideoDurations(fresh.map((v) => v.id).filter(Boolean) as string[]);
+    const freshIds = fresh.map((v) => v.id).filter(Boolean) as string[];
+    const [durations, signals] = await Promise.all([getVideoDurations(freshIds), getVideoSignals(freshIds)]);
+    for (const v of fresh) { if (v.id && signals[v.id]) { v.categoryId = signals[v.id].categoryId; v.topicCategories = signals[v.id].topicCategories; } }
     const watchable = fresh.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
     console.log(`  ${videos.length} fetched, ${fresh.length} in last 24h, ${fresh.length - watchable.length} shorts filtered`);
 
@@ -134,6 +142,9 @@ async function main(): Promise<void> {
     console.log(`\nTopic: "${topic}"`);
     const videos = await searchVideos(topic, config.settings.videosPerTopic);
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
+    const freshIds = fresh.map((v) => v.id).filter(Boolean) as string[];
+    const signals = await getVideoSignals(freshIds);
+    for (const v of fresh) { if (v.id && signals[v.id]) { v.categoryId = signals[v.id].categoryId; v.topicCategories = signals[v.id].topicCategories; } }
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
     for (const video of fresh) {

@@ -1,4 +1,18 @@
 /*
+5/23/2026 - nick decker | topic label catalogue
+ADDED
+- `topic_labels` table in `getDb()` — accumulates every YouTube topic label seen, with source URL, occurrence count, and first_seen timestamp
+- `upsertTopicLabels(labels)` — INSERT OR IGNORE + UPDATE count in a single transaction; no-ops on empty input
+
+5/23/2026 - nick decker | category signals
+ADDED
+- `categoryId?: string` and `topicCategories?: string[]` to `VideoMeta` type
+- `category_id TEXT` and `topic_categories TEXT` columns to videos and queue tables via ALTER TABLE (idempotent)
+- `categoryId` and `topicCategories` to `QueueItem` type
+- `saveVideo` persists both fields (topic_categories as JSON string)
+- `mapRowToVideo` reads both fields back out
+- `enqueueVideo` inserts both fields
+
 5/23/2026 - nick decker | queue table
 ADDED
 - `QueueItem` type — video + transcript + source metadata + status fields
@@ -71,6 +85,8 @@ export type VideoMeta = {
   publishedAt: string;
   description: string;
   thumbnailUrl?: string;
+  categoryId?: string;
+  topicCategories?: string[];
 };
 
 export type TopComment = {
@@ -112,6 +128,8 @@ export type QueueItem = {
   sourceType: string;
   sourceLabel: string;
   channelLabel?: string;
+  categoryId?: string;
+  topicCategories?: string[];
   queuedAt: string;
   status: "pending" | "processing" | "done" | "failed";
   error?: string;
@@ -120,6 +138,14 @@ export type QueueItem = {
 export function getDb(): Database.Database {
   if (_db) return _db;
   _db = new Database(DB_PATH);
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS topic_labels (
+      label      TEXT PRIMARY KEY,
+      url        TEXT NOT NULL,
+      count      INTEGER NOT NULL DEFAULT 1,
+      first_seen TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
   _db.exec(`
     CREATE TABLE IF NOT EXISTS queue (
       id            TEXT PRIMARY KEY,
@@ -162,6 +188,10 @@ export function getDb(): Database.Database {
     "ALTER TABLE videos ADD COLUMN top_comments TEXT",
     "ALTER TABLE videos ADD COLUMN clickbait INTEGER",
     "ALTER TABLE videos ADD COLUMN clickbait_reason TEXT",
+    "ALTER TABLE videos ADD COLUMN category_id TEXT",
+    "ALTER TABLE videos ADD COLUMN topic_categories TEXT",
+    "ALTER TABLE queue ADD COLUMN category_id TEXT",
+    "ALTER TABLE queue ADD COLUMN topic_categories TEXT",
   ]) {
     try { _db.exec(stmt); } catch {}
   }
@@ -181,11 +211,13 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
       (id, title, channel, published_at, description, thumbnail_url, one_liner, short_summary,
        takeaways, worth_watching, worth_watching_reason,
        verdict, verdict_detail, top_comments, clickbait, clickbait_reason,
+       category_id, topic_categories,
        summarized_at)
     VALUES
       (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary,
        @takeaways, @worthWatching, @worthWatchingReason,
        @verdict, @verdictDetail, @topComments, @clickbait, @clickbaitReason,
+       @categoryId, @topicCategories,
        @summarizedAt)
   `).run({
     id: video.id,
@@ -204,6 +236,8 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     topComments: summary.topComments ? JSON.stringify(summary.topComments) : null,
     clickbait: summary.clickbait === null ? null : (summary.clickbait ? 1 : 0),
     clickbaitReason: summary.clickbaitReason ?? null,
+    categoryId: video.categoryId ?? null,
+    topicCategories: video.topicCategories ? JSON.stringify(video.topicCategories) : null,
     summarizedAt: new Date().toISOString(),
   });
 }
@@ -222,6 +256,8 @@ function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
     publishedAt: r.published_at as string,
     description: r.description as string,
     thumbnailUrl: (r.thumbnail_url as string | null) ?? undefined,
+    categoryId: (r.category_id as string | null) ?? undefined,
+    topicCategories: r.topic_categories ? JSON.parse(r.topic_categories as string) as string[] : undefined,
     oneLiner: r.one_liner as string,
     shortSummary: (r.short_summary as string | null) ?? "",
     keyTakeaways: JSON.parse(r.takeaways as string) as string[],
@@ -263,20 +299,37 @@ export function getVideosByIds(ids: string[]): StoredVideo[] {
   return (getDb().prepare(`SELECT * FROM videos WHERE id IN (${placeholders})`).all(...ids) as Record<string, unknown>[]).map(mapRowToVideo);
 }
 
+export function upsertTopicLabels(labels: { label: string; url: string }[]): void {
+  if (labels.length === 0) return;
+  const db = getDb();
+  const insert = db.prepare("INSERT OR IGNORE INTO topic_labels (label, url) VALUES (?, ?)");
+  const increment = db.prepare("UPDATE topic_labels SET count = count + 1 WHERE label = ?");
+  db.transaction(() => {
+    for (const { label, url } of labels) {
+      insert.run(label, url);
+      increment.run(label);
+    }
+  })();
+}
+
 // ── Queue functions ──────────────────────────────────────────────────────────
 
 export function enqueueVideo(item: Omit<QueueItem, "queuedAt" | "status">): void {
   getDb().prepare(`
     INSERT OR IGNORE INTO queue
       (id, title, channel, description, thumbnail_url, published_at,
-       transcript, chunked, source_type, source_label, channel_label)
+       transcript, chunked, source_type, source_label, channel_label,
+       category_id, topic_categories)
     VALUES
       (@id, @title, @channel, @description, @thumbnailUrl, @publishedAt,
-       @transcript, @chunked, @sourceType, @sourceLabel, @channelLabel)
+       @transcript, @chunked, @sourceType, @sourceLabel, @channelLabel,
+       @categoryId, @topicCategories)
   `).run({
     ...item,
     thumbnailUrl: item.thumbnailUrl ?? null,
     channelLabel: item.channelLabel ?? null,
+    categoryId: item.categoryId ?? null,
+    topicCategories: item.topicCategories ? JSON.stringify(item.topicCategories) : null,
     chunked: item.chunked ? 1 : 0,
   });
 }

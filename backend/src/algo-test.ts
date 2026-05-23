@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | category signals
+CHANGED
+- Imports `getVideoSignals` from youtube.ts
+- After fetching videos for each source, calls `getVideoSignals` and patches `categoryId` and `topicCategories` onto each `VideoMeta` before processing
+
 5/23/2026 - nick decker | algo test runner
 ADDED
 - Fetches 50 videos from 24 sources: all 15 YouTube category trending feeds, overall trending, and 8 keyword searches
@@ -11,7 +16,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getTrending, searchVideos, getTopComments } from "./youtube.js";
+import { getTrending, searchVideos, getTopComments, getVideoSignals } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import { isAlreadySummarized, saveVideo, getVideosByIds } from "./db.js";
@@ -121,6 +126,12 @@ async function processSource(src: SourceDef, persona: string): Promise<SourceRes
     return { label: src.label, type: src.type, interestScore: src.interestScore, fetched: 0, noTranscript: 0, processed: 0, verdicts: { watch: 0, conditional: 0, skip: 0 }, skipRate: 0, videos: [] };
   }
   console.log(`  Fetched ${videos.length}`);
+
+  if (src.type === "search") {
+    const ids = videos.map((v) => v.id).filter(Boolean) as string[];
+    const signals = await getVideoSignals(ids);
+    for (const v of videos) { if (v.id && signals[v.id]) { v.categoryId = signals[v.id].categoryId; v.topicCategories = signals[v.id].topicCategories; } }
+  }
 
   const result: SourceResult = {
     label: src.label,
