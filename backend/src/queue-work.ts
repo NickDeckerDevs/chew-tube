@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | category preference signal
+CHANGED
+- Config type extended with `categoryPreferences?: Record<string, number>`
+- Resolves `categoryPreferences[item.categoryId]` before calling `summarize()`
+- Passes `categoryScore` as final arg to `summarize()`
+
 5/23/2026 - nick decker | queue worker
 ADDED
 - Drains the queue table one item at a time, calling Claude for each
@@ -46,7 +52,7 @@ async function main(): Promise<void> {
   const testName = process.argv[2] ?? "skip-rate-baseline";
   const config = JSON.parse(
     fs.readFileSync(path.join(__dirname, "../config.json"), "utf-8")
-  ) as { settings: { persona?: string } };
+  ) as { settings: { persona?: string; categoryPreferences?: Record<string, number> } };
   const persona = config.settings.persona ?? "a general viewer";
 
   const stuck = resetStuckItems();
@@ -79,9 +85,11 @@ async function main(): Promise<void> {
     process.stdout.write(`[${item.sourceLabel}] ${item.title.slice(0, 55)}...`);
 
     try {
+      const categoryPrefs = config.settings.categoryPreferences ?? {};
+      const categoryScore = item.categoryId ? categoryPrefs[item.categoryId] : undefined;
       const summary = await summarize(
         item.title, item.transcript, item.chunked, persona,
-        item.sourceType as "channel" | "topic", item.channelLabel
+        item.sourceType as "channel" | "topic", item.channelLabel, categoryScore
       );
       const comments = await getTopComments(item.id, 2);
       summary.topComments = comments.length > 0 ? comments : null;

@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | category preference signal
+CHANGED
+- `DigestConfig.settings` type extended with `categoryPreferences?: Record<string, number>`
+- `processVideo()` accepts optional `categoryScore` and passes it to `summarize()`
+- Channel and topic loops resolve `categoryPreferences[video.categoryId]` before calling `processVideo()`
+
 5/23/2026 - nick decker | category signals
 CHANGED
 - Imports `getVideoSignals` from youtube.ts
@@ -50,7 +56,7 @@ type ChannelEntry = { id?: string; uploadsPlaylistId: string; handle?: string; l
 type DigestConfig = {
   channels: ChannelEntry[];
   topics: string[];
-  settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string; hideSkipped?: boolean };
+  settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string; hideSkipped?: boolean; categoryPreferences?: Record<string, number> };
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -65,7 +71,8 @@ const hideSkipped = config.settings.hideSkipped ?? false;
 async function processVideo(
   video: VideoMeta,
   sourceType: SourceType,
-  channelLabel?: string
+  channelLabel?: string,
+  categoryScore?: number
 ): Promise<StoredVideo | null> {
   if (!video.id) return null;
 
@@ -83,7 +90,7 @@ async function processVideo(
   console.log(` ok (${result.estimatedTokens.toLocaleString()} tokens)`);
 
   process.stdout.write(`  Summarizing...`);
-  const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType, channelLabel);
+  const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType, channelLabel, categoryScore);
   console.log(" done");
 
   process.stdout.write(`  Fetching comments...`);
@@ -132,8 +139,10 @@ async function main(): Promise<void> {
     const watchable = fresh.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
     console.log(`  ${videos.length} fetched, ${fresh.length} in last 24h, ${fresh.length - watchable.length} shorts filtered`);
 
+    const categoryPrefs = config.settings.categoryPreferences ?? {};
     for (const video of watchable) {
-      const stored = await processVideo(video, "channel", ch.label);
+      const categoryScore = video.categoryId ? categoryPrefs[video.categoryId] : undefined;
+      const stored = await processVideo(video, "channel", ch.label, categoryScore);
       if (stored) newVideos.push(stored);
     }
   }
@@ -147,8 +156,10 @@ async function main(): Promise<void> {
     for (const v of fresh) { if (v.id && signals[v.id]) { v.categoryId = signals[v.id].categoryId; v.topicCategories = signals[v.id].topicCategories; } }
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
+    const categoryPrefs = config.settings.categoryPreferences ?? {};
     for (const video of fresh) {
-      const stored = await processVideo(video, "topic");
+      const categoryScore = video.categoryId ? categoryPrefs[video.categoryId] : undefined;
+      const stored = await processVideo(video, "topic", undefined, categoryScore);
       if (stored) newVideos.push(stored);
     }
   }

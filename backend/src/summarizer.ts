@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | category preference signal
+CHANGED
+- `buildSystemPrompt()` accepts optional `categoryScore` (1–5) and injects interest-level guidance
+- `summarize()` accepts optional `categoryScore` and passes it through to `buildSystemPrompt()`
+- Score 1–2: raises skip bar explicitly; score 4–5: lowers it; score 3: neutral
+
 5/22/2026 - nick decker | verdict algorithm v2
 CHANGED
 - `summarize()` now accepts `persona` and `sourceType` ("channel" | "topic") parameters
@@ -112,7 +118,15 @@ function buildInterestContext(profile: PersonaProfile): string {
 ${categoryBlock}`;
 }
 
-function buildSystemPrompt(persona: string, sourceType: SourceType, channelLabel?: string): string {
+const CATEGORY_SCORE_GUIDANCE: Record<number, string> = {
+  1: "Category interest: 1/5 (very low) — the viewer has almost no interest in this content category. Apply a significantly higher bar; only recommend watch if the content is exceptional and directly relevant to their other stated interests. Default toward skip.",
+  2: "Category interest: 2/5 (low) — the viewer has little interest in this content category. Lean toward skip unless the content is clearly and specifically relevant to their persona.",
+  3: "Category interest: 3/5 (moderate) — apply normal verdict criteria.",
+  4: "Category interest: 4/5 (high) — this is a category the viewer actively enjoys. Lean toward watch if content is decent and on-topic.",
+  5: "Category interest: 5/5 (very high) — this is a core interest area. Only skip for clear clickbait or content that is completely off-topic for their persona.",
+};
+
+function buildSystemPrompt(persona: string, sourceType: SourceType, channelLabel?: string, categoryScore?: number): string {
   const profile = loadPersonaProfile();
 
   const sourceContext = sourceType === "channel"
@@ -127,11 +141,15 @@ function buildSystemPrompt(persona: string, sourceType: SourceType, channelLabel
     ? `\n\n${buildInterestContext(profile)}`
     : "";
 
+  const categoryContext = categoryScore !== undefined && CATEGORY_SCORE_GUIDANCE[categoryScore]
+    ? `\n\n${CATEGORY_SCORE_GUIDANCE[categoryScore]}`
+    : "";
+
   return `You are a sharp video curator summarizing YouTube content for a specific viewer.
 
 Viewer's stated persona: ${persona}${interestContext}
 
-${sourceContext}${channelContext}
+${sourceContext}${channelContext}${categoryContext}
 
 Your job is to produce a concise structured summary and an honest verdict. The verdict should be genuinely useful — not reflexively positive. If a video is filler-heavy, clickbait, or irrelevant to this viewer, say so clearly and specifically. If a channel repeatedly produces content that doesn't serve this viewer, flag it in the verdict_detail so they can decide whether to keep following.`;
 }
@@ -238,10 +256,11 @@ export async function summarize(
   chunked: boolean,
   persona = "a general viewer",
   sourceType: SourceType = "topic",
-  channelLabel?: string
+  channelLabel?: string,
+  categoryScore?: number
 ): Promise<Summary> {
   const client = getAnthropicClient();
-  const systemPrompt = buildSystemPrompt(persona, sourceType, channelLabel);
+  const systemPrompt = buildSystemPrompt(persona, sourceType, channelLabel, categoryScore);
 
   if (chunked) {
     const chunks = splitTranscript(transcript);
