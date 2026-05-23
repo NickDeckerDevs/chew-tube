@@ -112,9 +112,14 @@ async function processSource(src: SourceDef, persona: string): Promise<SourceRes
   console.log(`\n[${src.label}] (interest: ${src.interestScore}/5)`);
 
   let videos: VideoMeta[];
-  if (src.type === "trending") videos = await getTrending(50, "US");
-  else if (src.type === "trending-category") videos = await getTrending(50, "US", src.categoryId);
-  else videos = await searchVideos(src.query, 50);
+  try {
+    if (src.type === "trending") videos = await getTrending(50, "US");
+    else if (src.type === "trending-category") videos = await getTrending(50, "US", src.categoryId);
+    else videos = await searchVideos(src.query, 50);
+  } catch (err) {
+    console.log(`  Skipped — API error: ${(err as Error).message}`);
+    return { label: src.label, type: src.type, interestScore: src.interestScore, fetched: 0, noTranscript: 0, processed: 0, verdicts: { watch: 0, conditional: 0, skip: 0 }, skipRate: 0, videos: [] };
+  }
   console.log(`  Fetched ${videos.length}`);
 
   const result: SourceResult = {

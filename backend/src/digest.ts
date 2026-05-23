@@ -32,7 +32,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
+import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments, getVideoDurations, isShort } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
@@ -120,9 +120,11 @@ async function main(): Promise<void> {
     if (!ch.uploadsPlaylistId) throw new Error(`uploadsPlaylistId missing for channel "${ch.label}" — run build-persona to resolve`);
     const videos = await getPlaylistVideos(ch.uploadsPlaylistId, config.settings.videosPerChannel);
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
-    console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
+    const durations = await getVideoDurations(fresh.map((v) => v.id).filter(Boolean) as string[]);
+    const watchable = fresh.filter((v) => !v.id || !durations[v.id] || !isShort(durations[v.id]));
+    console.log(`  ${videos.length} fetched, ${fresh.length} in last 24h, ${fresh.length - watchable.length} shorts filtered`);
 
-    for (const video of fresh) {
+    for (const video of watchable) {
       const stored = await processVideo(video, "channel", ch.label);
       if (stored) newVideos.push(stored);
     }

@@ -16,6 +16,8 @@
     "test-trending": "tsx src/test-trending.ts",
     "benchmark-playlist": "tsx src/benchmark-playlist.ts",
     "algo-test": "tsx src/algo-test.ts",
+    "queue-fill": "tsx src/queue-fill.ts",
+    "queue-work": "tsx src/queue-work.ts",
     "report": "npx --yes serve ../data -p 3456"
   },
   "dependencies": {

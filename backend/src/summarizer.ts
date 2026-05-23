@@ -139,16 +139,29 @@ Your job is to produce a concise structured summary and an honest verdict. The v
 async function callSummaryTool(
   client: Anthropic,
   systemPrompt: string,
-  userMessage: string
+  userMessage: string,
+  attempt = 0
 ): Promise<Summary> {
-  const response = await client.messages.create({
+  let response;
+  try {
+    response = await client.messages.create({
     model: HAIKU_MODEL,
     max_tokens: 1024,
     system: systemPrompt,
     tools: [SUMMARY_TOOL],
     tool_choice: { type: "any" },
-    messages: [{ role: "user", content: userMessage }],
-  });
+      messages: [{ role: "user", content: userMessage }],
+    });
+  } catch (err: unknown) {
+    const status = (err as { status?: number }).status;
+    if (status === 429 && attempt < 3) {
+      const wait = 60000 * (attempt + 1);
+      process.stdout.write(` [rate limit, waiting ${wait / 1000}s]`);
+      await new Promise((r) => setTimeout(r, wait));
+      return callSummaryTool(client, systemPrompt, userMessage, attempt + 1);
+    }
+    throw err;
+  }
 
   const toolUse = response.content.find((b) => b.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {

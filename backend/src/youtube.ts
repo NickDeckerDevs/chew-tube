@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | shorts filtering
+ADDED
+- `getVideoDurations(ids)` — batch-fetches contentDetails for up to 50 video IDs (1 quota unit); returns map of id → duration seconds
+- `isShort(durationSeconds)` — returns true for videos under 62 seconds (Shorts threshold)
+
 5/22/2026 - nick decker | persona profile builder
 ADDED
 - `getUploadsPlaylistId(channelId)` — fetches a channel's uploads playlist ID via channels.list (1 quota unit vs 100 for search.list); used by build-persona to avoid blowing search quota
@@ -164,6 +169,28 @@ export async function searchVideos(
     maxResults: n,
   });
   return (res.data.items ?? []).map(searchItemToMeta);
+}
+
+export async function getVideoDurations(ids: string[]): Promise<Record<string, number>> {
+  if (ids.length === 0) return {};
+  const yt = getYouTube();
+  const res = await yt.videos.list({ part: ["contentDetails"], id: ids });
+  const out: Record<string, number> = {};
+  for (const item of res.data.items ?? []) {
+    if (!item.id || !item.contentDetails?.duration) continue;
+    out[item.id] = parseIsoDuration(item.contentDetails.duration);
+  }
+  return out;
+}
+
+export function isShort(durationSeconds: number): boolean {
+  return durationSeconds < 62;
+}
+
+function parseIsoDuration(iso: string): number {
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (parseInt(m[1] ?? "0") * 3600) + (parseInt(m[2] ?? "0") * 60) + parseInt(m[3] ?? "0");
 }
 
 function itemToMeta(item: {

@@ -113,6 +113,53 @@ A web UI to manage channels/topics and browse past summaries. Email is already w
 
 ---
 
+### Queue Architecture: Producer / Worker split via SQLite queue table
+
+**Decision:** Add a `queue` table to the existing SQLite DB as a persistent job queue. Split video processing into two separate scripts — a fast producer that fetches and transcribes, and a rate-controlled worker that calls Claude.
+
+**Why:** The synchronous pipeline (fetch → transcribe → summarize → save) hits Anthropic's 50k input tokens/minute rate limit when processing many videos in bulk. Transcription has no API rate limits; only Claude calls do. Separating them means the producer runs at full speed while the worker self-throttles.
+
+**Producer (`queue-fill`):**
+- Iterates all sources (trending, categories, keyword searches)
+- Fetches video lists, pulls transcripts
+- Inserts transcribable videos into the `queue` table with `status = 'pending'`
+- No Claude calls — runs in seconds per source
+- Skips videos already in `videos` table (already scored) or already in queue
+
+**Worker (`queue-work`):**
+- Dequeues one `pending` item at a time (atomic SELECT + UPDATE to prevent double-processing)
+- Calls Claude, saves result to `videos` table, marks queue item `done`
+- Fixed 15-second delay between Claude calls → ~4 calls/min → ~40k tokens/min (safely under 50k limit)
+- Retry-with-backoff in `summarizer.ts` handles edge-case 429s
+- On startup, resets any `processing` items back to `pending` (crash recovery)
+- Saves dated results JSON + updates manifest when queue drains
+
+**Queue table schema:**
+```sql
+CREATE TABLE queue (
+  id            TEXT PRIMARY KEY,
+  title         TEXT NOT NULL,
+  channel       TEXT NOT NULL,
+  description   TEXT,
+  thumbnail_url TEXT,
+  published_at  TEXT,
+  transcript    TEXT NOT NULL,
+  chunked       INTEGER NOT NULL DEFAULT 0,
+  source_type   TEXT NOT NULL,
+  source_label  TEXT,
+  channel_label TEXT,
+  queued_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  status        TEXT NOT NULL DEFAULT 'pending',
+  started_at    TEXT,
+  completed_at  TEXT,
+  error         TEXT
+)
+```
+
+**Tradeoff acknowledged:** Fixed delay means the worker is intentionally slower than it could be. A token-bucket approach (tracking actual usage per minute) would be more efficient but adds complexity. The fixed delay is simple, predictable, and safe.
+
+---
+
 ### Storage: SQLite via `better-sqlite3`
 **Decision:** SQLite with the synchronous `better-sqlite3` driver.
 
@@ -249,6 +296,48 @@ All findings from automated code review applied:
 | `DIGEST_TO_EMAIL` | nickdeckerdevs@gmail.com |
 
 Once secrets are set, the digest will fire automatically at 7am CT daily. Manual trigger available from the GitHub Actions tab.
+
+---
+
+## Refactor Candidates (Next Refactor Pass)
+
+Any function over 15 lines flagged for review. Not all need splitting — some are fine — but each should be evaluated.
+
+| File | Function | Lines |
+|------|----------|-------|
+| algo-test.ts | processSource | 60 |
+| algo-test.ts | main | 77 |
+| backfill.ts | backfillThumbnails | 28 |
+| backfill.ts | backfillShortSummaries | 38 |
+| benchmark-playlist.ts | main | 44 |
+| build-persona.ts | resolveAndPersistMissingPlaylistIds | 24 |
+| build-persona.ts | main | 111 |
+| db.ts | getDb | 30 |
+| db.ts | saveVideo | 33 |
+| db.ts | mapRowToVideo | 21 |
+| digest.ts | processVideo | 38 |
+| digest.ts | main | 61 |
+| fix-titles.ts | main | 28 |
+| index.ts | parseArgs | 31 |
+| index.ts | fetchVideos | 25 |
+| index.ts | printSummary | 16 |
+| index.ts | main | 93 |
+| mailer.ts | sendDigestEmail | 20 |
+| mailer.ts | buildHtml | 21 |
+| mailer.ts | buildVideoSection | 38 |
+| rescore.ts | main | 49 |
+| send-before.ts | main | 18 |
+| summarizer.ts | buildSystemPrompt | 23 |
+| summarizer.ts | callSummaryTool | 50 |
+| summarizer.ts | summarizeChunks | 31 |
+| summarizer.ts | summarize | 22 |
+| test-topics.ts | main | 71 |
+| test-trending.ts | main | 52 |
+| transcript.ts | getTranscript | 22 |
+| youtube.ts | getPlaylistVideos | 21 |
+| youtube.ts | getTopComments | 22 |
+| youtube.ts | itemToMeta | 19 |
+| youtube.ts | searchItemToMeta | 19 |
 
 ---
 

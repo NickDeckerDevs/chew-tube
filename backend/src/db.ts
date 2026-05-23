@@ -1,4 +1,15 @@
 /*
+5/23/2026 - nick decker | queue table
+ADDED
+- `QueueItem` type — video + transcript + source metadata + status fields
+- `queue` table in `getDb()` schema (created if not exists)
+- `enqueueVideo(item)` — INSERT OR IGNORE so re-runs are idempotent
+- `dequeueNext()` — atomic SELECT + UPDATE to 'processing' (crash-safe)
+- `markQueueDone(id)` / `markQueueFailed(id, error)` — terminal status updates
+- `getQueueStats()` — counts by status
+- `resetStuckItems()` — resets 'processing' → 'pending' on worker startup
+- `clearQueue()` — wipes all queue rows (test utility)
+
 5/22/2026 - nick decker | verdict algorithm v2
 ADDED
 - `verdict TEXT` column — "watch" | "conditional" | "skip" (3-tier, replaces binary worth_watching semantically)
@@ -89,9 +100,46 @@ export type StoredVideo = VideoMeta &
 
 let _db: Database.Database | null = null;
 
+export type QueueItem = {
+  id: string;
+  title: string;
+  channel: string;
+  description: string;
+  thumbnailUrl?: string;
+  publishedAt: string;
+  transcript: string;
+  chunked: boolean;
+  sourceType: string;
+  sourceLabel: string;
+  channelLabel?: string;
+  queuedAt: string;
+  status: "pending" | "processing" | "done" | "failed";
+  error?: string;
+};
+
 export function getDb(): Database.Database {
   if (_db) return _db;
   _db = new Database(DB_PATH);
+  _db.exec(`
+    CREATE TABLE IF NOT EXISTS queue (
+      id            TEXT PRIMARY KEY,
+      title         TEXT NOT NULL,
+      channel       TEXT NOT NULL,
+      description   TEXT,
+      thumbnail_url TEXT,
+      published_at  TEXT,
+      transcript    TEXT NOT NULL,
+      chunked       INTEGER NOT NULL DEFAULT 0,
+      source_type   TEXT NOT NULL,
+      source_label  TEXT NOT NULL DEFAULT '',
+      channel_label TEXT,
+      queued_at     TEXT NOT NULL DEFAULT (datetime('now')),
+      status        TEXT NOT NULL DEFAULT 'pending',
+      started_at    TEXT,
+      completed_at  TEXT,
+      error         TEXT
+    )
+  `);
   _db.exec(`
     CREATE TABLE IF NOT EXISTS videos (
       id TEXT PRIMARY KEY,
@@ -213,4 +261,83 @@ export function getVideosByIds(ids: string[]): StoredVideo[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => "?").join(",");
   return (getDb().prepare(`SELECT * FROM videos WHERE id IN (${placeholders})`).all(...ids) as Record<string, unknown>[]).map(mapRowToVideo);
+}
+
+// ── Queue functions ──────────────────────────────────────────────────────────
+
+export function enqueueVideo(item: Omit<QueueItem, "queuedAt" | "status">): void {
+  getDb().prepare(`
+    INSERT OR IGNORE INTO queue
+      (id, title, channel, description, thumbnail_url, published_at,
+       transcript, chunked, source_type, source_label, channel_label)
+    VALUES
+      (@id, @title, @channel, @description, @thumbnailUrl, @publishedAt,
+       @transcript, @chunked, @sourceType, @sourceLabel, @channelLabel)
+  `).run({
+    ...item,
+    thumbnailUrl: item.thumbnailUrl ?? null,
+    channelLabel: item.channelLabel ?? null,
+    chunked: item.chunked ? 1 : 0,
+  });
+}
+
+export function dequeueNext(): QueueItem | null {
+  const db = getDb();
+  const dequeue = db.transaction(() => {
+    const row = db.prepare(
+      "SELECT * FROM queue WHERE status = 'pending' ORDER BY queued_at LIMIT 1"
+    ).get() as Record<string, unknown> | undefined;
+    if (!row) return null;
+    db.prepare(
+      "UPDATE queue SET status = 'processing', started_at = datetime('now') WHERE id = ?"
+    ).run(row.id);
+    return row;
+  });
+  const row = dequeue() as Record<string, unknown> | null;
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    channel: row.channel as string,
+    description: (row.description as string) ?? "",
+    thumbnailUrl: (row.thumbnail_url as string | null) ?? undefined,
+    publishedAt: (row.published_at as string) ?? "",
+    transcript: row.transcript as string,
+    chunked: row.chunked === 1,
+    sourceType: row.source_type as string,
+    sourceLabel: row.source_label as string,
+    channelLabel: (row.channel_label as string | null) ?? undefined,
+    queuedAt: row.queued_at as string,
+    status: "processing",
+  };
+}
+
+export function markQueueDone(id: string): void {
+  getDb().prepare(
+    "UPDATE queue SET status = 'done', completed_at = datetime('now') WHERE id = ?"
+  ).run(id);
+}
+
+export function markQueueFailed(id: string, error: string): void {
+  getDb().prepare(
+    "UPDATE queue SET status = 'failed', error = ?, completed_at = datetime('now') WHERE id = ?"
+  ).run(error, id);
+}
+
+export function getQueueStats(): Record<string, number> {
+  const rows = getDb().prepare(
+    "SELECT status, COUNT(*) as count FROM queue GROUP BY status"
+  ).all() as { status: string; count: number }[];
+  return Object.fromEntries(rows.map((r) => [r.status, r.count]));
+}
+
+export function resetStuckItems(): number {
+  const result = getDb().prepare(
+    "UPDATE queue SET status = 'pending', started_at = NULL WHERE status = 'processing'"
+  ).run();
+  return result.changes;
+}
+
+export function clearQueue(): void {
+  getDb().prepare("DELETE FROM queue").run();
 }
