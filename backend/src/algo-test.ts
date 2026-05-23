@@ -1,4 +1,11 @@
 /*
+5/23/2026 - nick decker | category preference signal
+CHANGED
+- `processSource()` accepts `prefs` (categoryPreferences map) and resolves per-video categoryScore
+- Score resolves as: `prefs[video.categoryId] ?? src.interestScore` — video's actual YouTube category
+  takes precedence; falls back to the source-level interest score
+- `categoryScore` passed as final arg to `summarize()`
+
 5/23/2026 - nick decker | category signals
 CHANGED
 - Imports `getVideoSignals` from youtube.ts
@@ -113,7 +120,7 @@ function saveManifest(entries: ManifestEntry[]): void {
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(entries, null, 2));
 }
 
-async function processSource(src: SourceDef, persona: string): Promise<SourceResult> {
+async function processSource(src: SourceDef, persona: string, prefs: Record<string, number>): Promise<SourceResult> {
   console.log(`\n[${src.label}] (interest: ${src.interestScore}/5)`);
 
   let videos: VideoMeta[];
@@ -165,7 +172,8 @@ async function processSource(src: SourceDef, persona: string): Promise<SourceRes
     const transcript = await getTranscript(video.id);
     if (!transcript.ok) { result.noTranscript++; process.stdout.write("_"); continue; }
 
-    const summary = await summarize(video.title, transcript.text, transcript.chunked, persona, "topic");
+    const categoryScore = video.categoryId ? (prefs[video.categoryId] ?? src.interestScore) : src.interestScore;
+    const summary = await summarize(video.title, transcript.text, transcript.chunked, persona, "topic", undefined, categoryScore);
     const comments = await getTopComments(video.id, 2);
     summary.topComments = comments.length > 0 ? comments : null;
 
@@ -223,7 +231,7 @@ async function main(): Promise<void> {
 
   const sources: SourceResult[] = [];
   for (const src of allSources) {
-    sources.push(await processSource(src, persona));
+    sources.push(await processSource(src, persona, prefs));
   }
 
   const totals = sources.reduce(
