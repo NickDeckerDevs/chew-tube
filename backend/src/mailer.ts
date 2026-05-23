@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | hideSkipped filter
+CHANGED
+- `sendDigestEmail` accepts new optional `hideSkipped` param (default false)
+- When true, filters out videos with verdict="skip" or worthWatching=false before building the email
+
 5/22/2026 - nick decker | verdict algorithm v2
 CHANGED
 - Verdict display updated to 3-tier: watch (green) / conditional (amber) / skip (red)
@@ -45,7 +50,8 @@ import { decodeHtml } from "./utils.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function sendDigestEmail(videos: StoredVideo[], to: string, subjectPrefix?: string): Promise<void> {
+export async function sendDigestEmail(videos: StoredVideo[], to: string, subjectPrefix?: string, hideSkipped = false): Promise<void> {
+  if (hideSkipped) videos = videos.filter((v) => v.verdict !== "skip" && v.worthWatching !== false);
   const date = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",

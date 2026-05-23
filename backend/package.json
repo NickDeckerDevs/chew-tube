@@ -13,7 +13,10 @@
     "rescore": "tsx src/rescore.ts",
     "test-topics": "tsx src/test-topics.ts",
     "build-persona": "tsx src/build-persona.ts",
-    "test-trending": "tsx src/test-trending.ts"
+    "test-trending": "tsx src/test-trending.ts",
+    "benchmark-playlist": "tsx src/benchmark-playlist.ts",
+    "algo-test": "tsx src/algo-test.ts",
+    "report": "npx --yes serve ../data -p 3456"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

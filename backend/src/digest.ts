@@ -1,4 +1,12 @@
 /*
+5/23/2026 - nick decker | uploads playlist ID enforcement + hideSkipped
+CHANGED
+- Removed runtime `getUploadsPlaylistId()` call — now uses `ch.uploadsPlaylistId` directly from config
+- `ChannelEntry` type now requires `uploadsPlaylistId` field (non-optional)
+- Throws a clear error if `uploadsPlaylistId` is missing (mandatory, no fallback)
+- `hideSkipped` read from `config.settings`, passed to `sendDigestEmail`
+- `DigestConfig.settings` type updated with `hideSkipped?: boolean`
+
 5/22/2026 - nick decker | quota optimization
 CHANGED
 - Channel video fetching switched from search.list (100 units/channel) to uploads playlist
@@ -24,7 +32,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getUploadsPlaylistId, getPlaylistVideos, getChannelVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
+import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments } from "./youtube.js";
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
@@ -32,11 +40,11 @@ import { isAlreadySummarized, saveVideo, updateVideoColumn } from "./db.js";
 import type { VideoMeta, StoredVideo } from "./db.js";
 import { sendDigestEmail } from "./mailer.js";
 
-type ChannelEntry = { id?: string; handle?: string; label: string };
+type ChannelEntry = { id?: string; uploadsPlaylistId: string; handle?: string; label: string };
 type DigestConfig = {
   channels: ChannelEntry[];
   topics: string[];
-  settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string };
+  settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string; hideSkipped?: boolean };
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,6 +54,7 @@ const config = JSON.parse(
 
 const CUTOFF = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 const persona = config.settings.persona ?? "a general viewer";
+const hideSkipped = config.settings.hideSkipped ?? false;
 
 async function processVideo(
   video: VideoMeta,
@@ -108,10 +117,8 @@ async function main(): Promise<void> {
     if (!channelId) continue;
 
     console.log(`\nChannel: ${ch.label}`);
-    const uploadsId = await getUploadsPlaylistId(channelId);
-    const videos = uploadsId
-      ? await getPlaylistVideos(uploadsId, config.settings.videosPerChannel)
-      : await getChannelVideos(channelId, config.settings.videosPerChannel); // fallback if uploads playlist unavailable
+    if (!ch.uploadsPlaylistId) throw new Error(`uploadsPlaylistId missing for channel "${ch.label}" — run build-persona to resolve`);
+    const videos = await getPlaylistVideos(ch.uploadsPlaylistId, config.settings.videosPerChannel);
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
@@ -141,7 +148,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Sending digest to ${toEmail}...`);
-  await sendDigestEmail(newVideos, toEmail);
+  await sendDigestEmail(newVideos, toEmail, undefined, hideSkipped);
   console.log("Email sent.");
 }
 

@@ -1,4 +1,13 @@
 /*
+5/23/2026 - nick decker | resolve and persist missing uploads playlist IDs
+ADDED
+- `resolveAndPersistMissingPlaylistIds()` — detects channels missing `uploadsPlaylistId`, batch-resolves all in one `channels.list` API call, writes resolved IDs back to config.json
+- `CONFIG_PATH` extracted as a module-level constant
+CHANGED
+- Channel loop now uses `ch.uploadsPlaylistId` directly instead of calling `getUploadsPlaylistId()` per channel
+- `ChannelEntry` type updated with optional `uploadsPlaylistId` field
+- `DigestConfig` type updated to include `topics` and broader `settings: Record<string, unknown>` type
+
 5/22/2026 - nick decker | persona profile builder
 ADDED
 - Fetches top 5 videos per configured channel (title + description only, no transcription)
@@ -15,16 +24,17 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getChannelVideos, getUploadsPlaylistId, getPlaylistVideos } from "./youtube.js";
+import { getChannelVideos, getPlaylistVideos, getYouTube } from "./youtube.js";
 import { getAnthropicClient, HAIKU_MODEL } from "./utils.js";
 import { runScript } from "./utils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-type ChannelEntry = { id?: string; label: string };
+type ChannelEntry = { id?: string; uploadsPlaylistId?: string; label: string };
 type DigestConfig = {
   channels: ChannelEntry[];
-  settings: { persona?: string };
+  topics: string[];
+  settings: Record<string, unknown>;
 };
 
 export type ChannelProfile = {
@@ -55,12 +65,41 @@ export function loadPersonaProfile(): PersonaProfile | null {
   }
 }
 
+const CONFIG_PATH = path.join(__dirname, "../config.json");
+
+async function resolveAndPersistMissingPlaylistIds(config: DigestConfig): Promise<void> {
+  const missing = config.channels.filter((ch) => ch.id && !ch.uploadsPlaylistId);
+  if (missing.length === 0) return;
+
+  console.log(`Resolving uploadsPlaylistId for ${missing.length} channel(s)...`);
+  const yt = getYouTube();
+  // channels.list accepts up to 50 IDs per call
+  const ids = missing.map((ch) => ch.id!);
+  const res = await yt.channels.list({ part: ["contentDetails"], id: ids });
+  const items = res.data.items ?? [];
+
+  for (const item of items) {
+    const uploadsId = item.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsId || !item.id) continue;
+    const entry = config.channels.find((ch) => ch.id === item.id);
+    if (entry) {
+      entry.uploadsPlaylistId = uploadsId;
+      console.log(`  ${entry.label}: ${uploadsId}`);
+    }
+  }
+
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  console.log("config.json updated with resolved playlist IDs.\n");
+}
+
 async function main(): Promise<void> {
   const config = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "../config.json"), "utf-8")
+    fs.readFileSync(CONFIG_PATH, "utf-8")
   ) as DigestConfig;
 
-  const statedPersona = config.settings.persona ?? "a general viewer";
+  await resolveAndPersistMissingPlaylistIds(config);
+
+  const statedPersona = (config.settings.persona as string | undefined) ?? "a general viewer";
   const channels = config.channels.filter((ch) => ch.id);
 
   console.log(`Building persona profile from ${channels.length} channels...`);
@@ -71,10 +110,8 @@ async function main(): Promise<void> {
   for (const ch of channels) {
     process.stdout.write(`  ${ch.label}...`);
     try {
-      // Use uploads playlist (1 quota unit) instead of search.list (100 units)
-      const uploadsId = await getUploadsPlaylistId(ch.id!);
-      const videos = uploadsId
-        ? await getPlaylistVideos(uploadsId, 5)
+      const videos = ch.uploadsPlaylistId
+        ? await getPlaylistVideos(ch.uploadsPlaylistId, 5)
         : await getChannelVideos(ch.id!, 5);
       channelData.push({
         label: ch.label,

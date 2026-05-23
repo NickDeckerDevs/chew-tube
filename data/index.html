@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tube Chew — Algo Tests</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #222; }
+
+  header { background: #111; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 17px; font-weight: 600; white-space: nowrap; }
+  header select { background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+  .meta { font-size: 12px; color: #999; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .card { background: #fff; border-radius: 8px; padding: 14px 18px; border: 1px solid #e0e0e0; }
+  .card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .card.watch .value { color: #2e7d32; }
+  .card.cond  .value { color: #e65100; }
+  .card.skip  .value { color: #c62828; }
+
+  .section-title { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+  .interest-group { margin-bottom: 28px; }
+  .interest-header { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 6px; margin-bottom: 8px; display: inline-block; }
+  .interest-header.high { background: #e8f5e9; color: #2e7d32; }
+  .interest-header.mid  { background: #fff8e1; color: #f57f17; }
+  .interest-header.low  { background: #fce4ec; color: #c62828; }
+
+  .sources { display: flex; flex-direction: column; gap: 10px; }
+  .source-card { background: #fff; border-radius: 8px; border: 1px solid #e0e0e0; padding: 16px 20px; border-left: 4px solid #ddd; }
+  .source-card.interest-5 { border-left-color: #2e7d32; }
+  .source-card.interest-4 { border-left-color: #66bb6a; }
+  .source-card.interest-3 { border-left-color: #ffa726; }
+  .source-card.interest-2 { border-left-color: #ef5350; }
+  .source-card.interest-1 { border-left-color: #b71c1c; }
+
+  .source-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 3px; }
+  .source-card h3 { font-size: 14px; font-weight: 600; }
+  .stars { font-size: 12px; color: #bbb; letter-spacing: -1px; }
+  .stars .on { color: #ffa726; }
+  .source-meta { font-size: 12px; color: #999; margin-bottom: 10px; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-wrap { flex: 1; height: 16px; background: #f0f0f0; border-radius: 3px; overflow: hidden; display: flex; min-width: 0; }
+  .bar-watch { background: #2e7d32; height: 100%; }
+  .bar-cond  { background: #e65100; height: 100%; }
+  .bar-skip  { background: #c62828; height: 100%; }
+  .bar-none  { background: #e0e0e0; height: 100%; width: 100%; }
+  .bar-label { font-size: 12px; font-weight: 600; width: 70px; text-align: right; white-space: nowrap; }
+  .bar-label.high { color: #c62828; }
+  .bar-label.mid  { color: #e65100; }
+  .bar-label.low  { color: #2e7d32; }
+
+  .nums { display: flex; gap: 14px; font-size: 12px; color: #666; margin-top: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  .dot-w { background: #2e7d32; }
+  .dot-c { background: #e65100; }
+  .dot-s { background: #c62828; }
+
+  .no-data { text-align: center; padding: 60px; color: #999; font-size: 15px; }
+  .no-data code { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Tube Chew — Algo Tests</h1>
+  <select id="testSelect" onchange="loadTest(this.value)"><option value="">Loading…</option></select>
+  <span class="meta" id="metaLine"></span>
+</header>
+<main id="main"><div class="no-data">Loading…</div></main>
+
+<script>
+async function fetchJson(url) {
+  const r = await fetch(url); if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json();
+}
+function pct(n, total) { return total > 0 ? Math.round((n / total) * 100) : 0; }
+function skipClass(rate) { return rate >= 0.6 ? "high" : rate >= 0.35 ? "mid" : "low"; }
+
+function stars(score) {
+  let s = "";
+  for (let i = 1; i <= 5; i++) s += `<span class="${i <= score ? "on" : ""}">★</span>`;
+  return `<span class="stars">${s}</span>`;
+}
+
+function interestLabel(score) {
+  if (score >= 4) return "high";
+  if (score >= 3) return "mid";
+  return "low";
+}
+
+function renderCards(t) {
+  return `<div class="cards">
+    <div class="card"><div class="label">Fetched</div><div class="value">${t.fetched}</div></div>
+    <div class="card"><div class="label">Processed</div><div class="value">${t.processed}</div></div>
+    <div class="card"><div class="label">No transcript</div><div class="value">${t.noTranscript}</div></div>
+    <div class="card watch"><div class="label">Watch</div><div class="value">${t.watch}</div></div>
+    <div class="card cond"><div class="label">Conditional</div><div class="value">${t.conditional}</div></div>
+    <div class="card skip"><div class="label">Skip</div><div class="value">${t.skip}</div></div>
+    <div class="card"><div class="label">Overall skip rate</div><div class="value">${pct(t.skip, t.processed)}%</div></div>
+  </div>`;
+}
+
+function renderSource(src) {
+  const { processed, verdicts, noTranscript, fetched, interestScore = 3 } = src;
+  const wP = pct(verdicts.watch, processed);
+  const cP = pct(verdicts.conditional, processed);
+  const sP = pct(verdicts.skip, processed);
+  const skipRate = processed > 0 ? verdicts.skip / processed : 0;
+  const sc = skipClass(skipRate);
+  const queryLine = src.query ? `"${src.query}" · ` : src.categoryName ? `Category: ${src.categoryName} · ` : "";
+  const noProc = processed === 0;
+
+  return `<div class="source-card interest-${interestScore}">
+    <div class="source-top">
+      <h3>${src.label}</h3>
+      ${stars(interestScore)}
+    </div>
+    <div class="source-meta">${queryLine}${fetched} fetched · ${noTranscript} no transcript · ${processed} processed</div>
+    <div class="bar-row">
+      <div class="bar-wrap">${noProc
+        ? `<div class="bar-none"></div>`
+        : `<div class="bar-watch" style="width:${wP}%"></div><div class="bar-cond" style="width:${cP}%"></div><div class="bar-skip" style="width:${sP}%"></div>`
+      }</div>
+      <div class="bar-label ${sc}">${noProc ? "—" : `${sP}% skip`}</div>
+    </div>
+    <div class="nums">
+      <span><span class="dot dot-w"></span>Watch ${verdicts.watch} (${wP}%)</span>
+      <span><span class="dot dot-c"></span>Conditional ${verdicts.conditional} (${cP}%)</span>
+      <span><span class="dot dot-s"></span>Skip ${verdicts.skip} (${sP}%)</span>
+    </div>
+  </div>`;
+}
+
+function groupByInterest(sources) {
+  const groups = { high: [], mid: [], low: [] };
+  for (const s of sources) {
+    const score = s.interestScore ?? 3;
+    if (score >= 4) groups.high.push(s);
+    else if (score >= 3) groups.mid.push(s);
+    else groups.low.push(s);
+  }
+  return groups;
+}
+
+function renderGroup(label, sources, cls) {
+  if (!sources.length) return "";
+  return `<div class="interest-group">
+    <div class="interest-header ${cls}">${label}</div>
+    <div class="sources">${sources.map(renderSource).join("")}</div>
+  </div>`;
+}
+
+function render(data) {
+  document.getElementById("metaLine").textContent =
+    `${new Date(data.runAt).toLocaleString()} · ${data.persona}`;
+  const groups = groupByInterest(data.sources);
+  document.getElementById("main").innerHTML = `
+    <div class="section-title" style="margin-bottom:12px;">Overall</div>
+    ${renderCards(data.totals)}
+    <div class="section-title" style="margin-bottom:16px;">By source — sorted by interest</div>
+    ${renderGroup("High interest (4–5 ★)", groups.high, "high")}
+    ${renderGroup("Mid interest (3 ★)", groups.mid, "mid")}
+    ${renderGroup("Low interest (1–2 ★)", groups.low, "low")}
+  `;
+}
+
+async function loadTest(filename) {
+  if (!filename) return;
+  try { render(await fetchJson(`./results/${filename}`)); }
+  catch (e) { document.getElementById("main").innerHTML = `<div class="no-data">Failed: ${e.message}</div>`; }
+}
+
+async function init() {
+  try {
+    const manifest = await fetchJson("./results/manifest.json");
+    const sel = document.getElementById("testSelect");
+    sel.innerHTML = manifest.map(e =>
+      `<option value="${e.file}">${e.name} — ${e.runAt.slice(0,10)}</option>`
+    ).join("");
+    if (manifest.length) loadTest(manifest[0].file);
+    else document.getElementById("main").innerHTML =
+      `<div class="no-data">No results yet. Run <code>npm run algo-test</code>.</div>`;
+  } catch {
+    document.getElementById("testSelect").innerHTML = `<option value="">No results</option>`;
+    document.getElementById("main").innerHTML =
+      `<div class="no-data">Run <code>npm run algo-test</code> then <code>npm run report</code>.</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
