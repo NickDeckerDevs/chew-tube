@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | upsertTopicLabels bug fix
+FIXED
+- `upsertTopicLabels` was double-counting: INSERT OR IGNORE (count=1) + always-UPDATE (count=2) on first insert
+- Replaced two-step INSERT OR IGNORE + UPDATE with a single `INSERT ... ON CONFLICT(label) DO UPDATE SET count = count + 1`
+- First insert now correctly produces count=1; subsequent calls increment from there
+
 5/23/2026 - nick decker | split score into raw + penalty
 CHANGED
 - `Summary` type: added `scoreRaw: number | null` and `scorePenalty: number | null`
@@ -357,12 +363,13 @@ export function getVideosByIds(ids: string[]): StoredVideo[] {
 export function upsertTopicLabels(labels: { label: string; url: string }[]): void {
   if (labels.length === 0) return;
   const db = getDb();
-  const insert = db.prepare("INSERT OR IGNORE INTO topic_labels (label, url) VALUES (?, ?)");
-  const increment = db.prepare("UPDATE topic_labels SET count = count + 1 WHERE label = ?");
+  const upsert = db.prepare(`
+    INSERT INTO topic_labels (label, url, count) VALUES (?, ?, 1)
+    ON CONFLICT(label) DO UPDATE SET count = count + 1
+  `);
   db.transaction(() => {
     for (const { label, url } of labels) {
-      insert.run(label, url);
-      increment.run(label);
+      upsert.run(label, url);
     }
   })();
 }

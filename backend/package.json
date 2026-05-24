@@ -18,7 +18,9 @@
     "algo-test": "tsx src/algo-test.ts",
     "queue-fill": "tsx src/queue-fill.ts",
     "queue-work": "tsx src/queue-work.ts",
-    "report": "npx --yes serve ../data -p 3456"
+    "report": "npx --yes serve ../data -p 3456",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
@@ -33,6 +35,7 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.7"
   }
 }
