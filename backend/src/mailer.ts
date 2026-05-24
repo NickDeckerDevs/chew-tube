@@ -61,6 +61,21 @@ import { decodeHtml } from "./utils.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+export async function sendLogEmail(lines: string[], to: string): Promise<void> {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  await resend.emails.send({
+    from: "Tube Chew <onboarding@resend.dev>",
+    to,
+    subject: `Digest Log — ${date} at ${time}`,
+    html: `<!DOCTYPE html><html><body style="font-family:monospace;max-width:700px;margin:0 auto;padding:20px;background:#fff;color:#333;">
+<h2 style="font-size:16px;border-bottom:1px solid #ccc;padding-bottom:8px;">Digest Run Log</h2>
+<pre style="font-size:13px;line-height:1.6;white-space:pre-wrap;">${lines.map((l) => esc(l)).join("\n")}</pre>
+</body></html>`,
+  });
+}
+
 export async function sendDigestEmail(videos: StoredVideo[], to: string, subjectPrefix?: string, hideSkipped = false): Promise<void> {
   if (hideSkipped) videos = videos.filter((v) => v.verdict !== "skip" && v.worthWatching !== false);
   const now = new Date();

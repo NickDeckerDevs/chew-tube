@@ -81,16 +81,16 @@ import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
 import { isAlreadySummarized, saveVideo } from "./db.js";
 import type { VideoMeta, StoredVideo } from "./db.js";
-import { sendDigestEmail } from "./mailer.js";
+import { sendDigestEmail, sendLogEmail } from "./mailer.js";
 import { computeScore } from "./scorer.js";
 
 const LOG = process.argv.includes("--log");
-let logFile: fs.WriteStream | null = null;
+const logLines: string[] = [];
 
 function log(msg: string) {
   if (!LOG) return;
   console.log(msg);
-  logFile?.write(msg + "\n");
+  logLines.push(msg);
 }
 
 function estTimestamp(d: Date): string {
@@ -171,15 +171,6 @@ async function processVideo(
 async function main(): Promise<void> {
   const toEmail = process.env.DIGEST_TO_EMAIL;
   if (!toEmail) throw new Error("DIGEST_TO_EMAIL is not set");
-
-  if (LOG) {
-    const logsDir = path.join(__dirname, "../../data/logs");
-    fs.mkdirSync(logsDir, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const logPath = path.join(logsDir, `${stamp}.log`);
-    logFile = fs.createWriteStream(logPath, { flags: "w" });
-    console.log(`Log: ${logPath}`);
-  }
 
   log(`Starting run ${estTimestamp(new Date())}`);
   console.log(`Digest run — cutoff: ${CUTOFF}`);
@@ -266,6 +257,13 @@ async function main(): Promise<void> {
   console.log(`Sending digest to ${toEmail}...`);
   await sendDigestEmail(newVideos, toEmail, undefined, hideSkipped);
   console.log("Email sent.");
+
+  const logEmail = process.env.DIGEST_LOG_EMAIL;
+  if (LOG && logEmail) {
+    console.log(`Sending log to ${logEmail}...`);
+    await sendLogEmail(logLines, logEmail);
+    console.log("Log email sent.");
+  }
 }
 
 main().catch((err) => {
