@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
+import type { Summary } from "./db.js";
 
 // Import only the functions we need — we'll point them at an in-memory DB
 // by monkey-patching the module-level `_db` via getDb's lazy init.
@@ -79,6 +80,25 @@ const videoMeta = {
   topicCategories: ["Science & Technology", "Computing"],
 };
 
+const nullSummary = {
+  oneLiner: "Null test",
+  keyTakeaways: [] as string[],
+  shortSummary: "",
+  worthWatching: false,
+  worthWatchingReason: "n/a",
+  verdict: null,
+  verdictDetail: null,
+  clickbait: null,
+  clickbaitReason: null,
+  personaMatch: null,
+  channelCategoriesMatched: null,
+  topComments: null,
+  score: null,
+  scoreRaw: null,
+  scorePenalty: null,
+  scoreBreakdown: null,
+};
+
 const fullSummary = {
   oneLiner: "A great video about testing",
   keyTakeaways: ["Point one", "Point two", "Point three"],
@@ -98,7 +118,7 @@ const fullSummary = {
   scoreBreakdown: { baseline: 5, statedPersona: 6, channelPersona: 4, categoryModifier: 0.6, penalty: 0, total: 15 },
 };
 
-function insertVideo(db: Database.Database, video = videoMeta, summary = fullSummary) {
+function insertVideo(db: Database.Database, video = videoMeta, summary: Summary = fullSummary) {
   db.prepare(`
     INSERT OR IGNORE INTO videos
       (id, title, channel, published_at, description, thumbnail_url,
@@ -165,17 +185,7 @@ describe("db — saveVideo / mapRowToVideo round-trip", () => {
   });
 
   it("null optional fields come back as null, not undefined", () => {
-    insertVideo(db, videoMeta, {
-      ...fullSummary,
-      verdict: null,
-      topComments: null,
-      personaMatch: null,
-      clickbait: null,
-      score: null,
-      scoreRaw: null,
-      scorePenalty: null,
-      scoreBreakdown: null,
-    });
+    insertVideo(db, videoMeta, nullSummary);
     const row = readVideo(db, videoMeta.id)!;
 
     expect(row.verdict).toBeNull();

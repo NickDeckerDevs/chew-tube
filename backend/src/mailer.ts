@@ -1,4 +1,11 @@
 /*
+5/23/2026 - nick decker | integer score display
+CHANGED
+- `buildVideoSection` renders a score line below the verdict when `score !== null`
+- Shows net score, raw score, and penalty as three labeled values
+- Penalty value turns red when > 0; net score turns red when negative
+- Old rows without score data render no score line (null check)
+
 5/23/2026 - nick decker | hideSkipped filter
 CHANGED
 - `sendDigestEmail` accepts new optional `hideSkipped` param (default false)
@@ -114,6 +121,18 @@ function buildVideoSection(video: StoredVideo): string {
     ? `<img src="${video.thumbnailUrl}" width="320" alt="" style="width:100%;max-width:320px;height:auto;display:block;margin-bottom:12px;border-radius:4px;">`
     : "";
 
+  const scoreHtml = video.score !== null && video.scoreRaw !== null && video.scorePenalty !== null
+    ? (() => {
+        const netColor = video.score < 0 ? "#c62828" : "#555";
+        const penaltyColor = video.scorePenalty > 0 ? "#c62828" : "#888";
+        return `<p style="margin:4px 0 0 0;font-size:12px;color:#888;">
+    Score&nbsp;<strong style="color:${netColor};">${video.score}</strong>
+    &nbsp;&middot;&nbsp;raw&nbsp;<strong style="color:#555;">${video.scoreRaw}</strong>
+    &nbsp;&middot;&nbsp;penalty&nbsp;<strong style="color:${penaltyColor};">${video.scorePenalty}</strong>
+  </p>`;
+      })()
+    : "";
+
   const clickbaitBadge = video.clickbait
     ? `<span style="display:inline-block;margin-left:8px;padding:1px 6px;background:#fff3e0;border:1px solid #ffb74d;border-radius:3px;font-size:11px;color:#e65100;">⚠ Clickbait</span>`
     : "";
@@ -140,6 +159,7 @@ function buildVideoSection(video: StoredVideo): string {
     <span style="color: ${color}; font-weight: bold;">${icon} ${text}</span>
     &mdash; ${md(reason)}
   </p>
+  ${scoreHtml}
   ${commentsHtml}
 </div>`;
 }
