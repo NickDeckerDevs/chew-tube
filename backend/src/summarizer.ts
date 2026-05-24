@@ -251,6 +251,8 @@ async function callSummaryTool(
       : null,
     topComments: null,
     score: null,
+    scoreRaw: null,
+    scorePenalty: null,
     scoreBreakdown: null,
   };
 }

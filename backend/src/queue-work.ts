@@ -1,4 +1,8 @@
 /*
+5/23/2026 - nick decker | split score into raw + penalty
+CHANGED
+- Destructures `scoreRaw` and `scorePenalty` from `computeScore` result and patches both onto summary
+
 5/23/2026 - nick decker | integer scorer
 CHANGED
 - Imports `computeScore` from scorer.ts
@@ -99,8 +103,10 @@ async function main(): Promise<void> {
         sourceType, item.channelLabel, categoryScore
       );
 
-      const { score, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
+      const { score, scoreRaw, scorePenalty, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
       summary.score = score;
+      summary.scoreRaw = scoreRaw;
+      summary.scorePenalty = scorePenalty;
       summary.scoreBreakdown = breakdown;
 
       const comments = await getTopComments(item.id, 2);

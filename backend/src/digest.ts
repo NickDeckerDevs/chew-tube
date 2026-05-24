@@ -1,4 +1,8 @@
 /*
+5/23/2026 - nick decker | split score into raw + penalty
+CHANGED
+- `processVideo()` destructures `scoreRaw` and `scorePenalty` from `computeScore` and patches both onto summary
+
 5/23/2026 - nick decker | integer scorer
 CHANGED
 - Imports `computeScore` from scorer.ts
@@ -99,8 +103,10 @@ async function processVideo(
   const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType, channelLabel, categoryScore);
   console.log(" done");
 
-  const { score, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
+  const { score, scoreRaw, scorePenalty, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
   summary.score = score;
+  summary.scoreRaw = scoreRaw;
+  summary.scorePenalty = scorePenalty;
   summary.scoreBreakdown = breakdown;
 
   process.stdout.write(`  Fetching comments...`);
