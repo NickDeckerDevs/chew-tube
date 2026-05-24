@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | integer scorer
+CHANGED
+- Imports `computeScore` from scorer.ts
+- `processVideo()` calls `computeScore` after summarization and patches `score` + `scoreBreakdown` onto summary before `saveVideo`
+
 5/23/2026 - nick decker | category preference signal
 CHANGED
 - `DigestConfig.settings` type extended with `categoryPreferences?: Record<string, number>`
@@ -51,6 +56,7 @@ import type { SourceType } from "./summarizer.js";
 import { isAlreadySummarized, saveVideo, updateVideoColumn } from "./db.js";
 import type { VideoMeta, StoredVideo } from "./db.js";
 import { sendDigestEmail } from "./mailer.js";
+import { computeScore } from "./scorer.js";
 
 type ChannelEntry = { id?: string; uploadsPlaylistId: string; handle?: string; label: string };
 type DigestConfig = {
@@ -92,6 +98,10 @@ async function processVideo(
   process.stdout.write(`  Summarizing...`);
   const summary = await summarize(video.title, result.text, result.chunked, persona, sourceType, channelLabel, categoryScore);
   console.log(" done");
+
+  const { score, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
+  summary.score = score;
+  summary.scoreBreakdown = breakdown;
 
   process.stdout.write(`  Fetching comments...`);
   const comments = await getTopComments(video.id, 2);

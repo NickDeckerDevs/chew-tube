@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | integer scorer
+CHANGED
+- Imports `computeScore` from scorer.ts
+- After `summarize()`, calls `computeScore` and patches `score` + `scoreBreakdown` onto summary before `saveVideo`
+
 5/23/2026 - nick decker | category preference signal
 CHANGED
 - Config type extended with `categoryPreferences?: Record<string, number>`
@@ -26,6 +31,7 @@ import {
   isAlreadySummarized, saveVideo, dequeueNext, markQueueDone, markQueueFailed,
   getQueueStats, resetStuckItems,
 } from "./db.js";
+import { computeScore } from "./scorer.js";
 import { runScript } from "./utils.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -87,10 +93,16 @@ async function main(): Promise<void> {
     try {
       const categoryPrefs = config.settings.categoryPreferences ?? {};
       const categoryScore = item.categoryId ? categoryPrefs[item.categoryId] : undefined;
+      const sourceType = item.sourceType as "channel" | "topic";
       const summary = await summarize(
         item.title, item.transcript, item.chunked, persona,
-        item.sourceType as "channel" | "topic", item.channelLabel, categoryScore
+        sourceType, item.channelLabel, categoryScore
       );
+
+      const { score, breakdown } = computeScore(summary, sourceType, categoryScore ?? 3);
+      summary.score = score;
+      summary.scoreBreakdown = breakdown;
+
       const comments = await getTopComments(item.id, 2);
       summary.topComments = comments.length > 0 ? comments : null;
 

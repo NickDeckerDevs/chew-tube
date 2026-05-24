@@ -1,4 +1,10 @@
 <!--
+5/23/2026 - nick decker | integer scorer phase 1
+CHANGED
+- Algorithm Development checklist: integer scoring Phase 1 marked complete
+- Explicit persona match signals (persona_match + channel_categories_matched) noted as complete
+- Integer scoring item updated to show Phase 1 done, Phases 2–4 remaining
+
 5/22/2026 - nick decker | phase 2 completion
 CHANGED
 - Status updated to Phase 2 complete
@@ -346,7 +352,10 @@ See `algorithm.md` for full design. Items completed this session:
 - [x] Queue architecture — `queue-fill` + `queue-work` producer/worker split
 - [x] Algo-test framework — 24 sources, dated results, HTML report viewer
 - [x] Wire `categoryPreferences` into summarizer — category score (1–5) now injected into Claude system prompt per video; resolves from video's actual `categoryId` with source-level interestScore as fallback; affects digest, queue-work, and algo-test
-- [ ] Integer scoring — parallel to Claude verdict, both shown in email
+- [x] Integer scoring Phase 1 — explicit persona match signals: `persona_match` ("strong"/"partial"/"none") and `channel_categories_matched` (0–3) added to Claude tool schema as independent fields; stored in DB as `persona_match` + `channel_categories_matched` columns
+- [x] Integer scoring Phase 2 — `scorer.ts`: `computeScore(signals, sourceType, categoryScore)` — baseline + stated persona + channel persona (both scaled by category multiplier) + clickbait penalty; returns `{ score, breakdown }`
+- [x] Integer scoring Phase 3 — `score` + `score_breakdown` DB columns; digest.ts and queue-work.ts compute and store score after summarization
+- [ ] Integer scoring Phase 4 — surface both verdict and integer score in email
 - [ ] Music genre scoring path — own logic, no transcript required
 - [ ] Negative signals (second −10) — deferred until post-use observation
 - [ ] Integer score thresholds — TBD after first parallel run

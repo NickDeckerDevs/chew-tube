@@ -1,4 +1,9 @@
 /*
+5/23/2026 - nick decker | integer scorer fields
+CHANGED
+- `callSummaryTool` return object now includes `score: null` and `scoreBreakdown: null` to satisfy updated `Summary` type
+  (score is computed by scorer.ts after summarization and patched onto the summary object before saveVideo)
+
 5/23/2026 - nick decker | explicit persona match signals
 ADDED
 - `persona_match` field in tool schema — "strong" | "partial" | "none", evaluated independently of verdict
@@ -245,6 +250,8 @@ async function callSummaryTool(
       ? Math.min(3, Math.max(0, Math.round(input.channel_categories_matched)))
       : null,
     topComments: null,
+    score: null,
+    scoreBreakdown: null,
   };
 }
 

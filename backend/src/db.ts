@@ -1,4 +1,12 @@
 /*
+5/23/2026 - nick decker | integer scorer columns
+ADDED
+- `score: number | null` to `Summary` type
+- `scoreBreakdown: ScoreBreakdown | null` to `Summary` type
+- `score INTEGER` and `score_breakdown TEXT` columns to videos table (idempotent migration)
+- `saveVideo` persists both fields
+- `mapRowToVideo` reads both fields back out
+
 5/23/2026 - nick decker | explicit persona match signals
 ADDED
 - `personaMatch: "strong" | "partial" | "none" | null` to `Summary` type
@@ -81,6 +89,7 @@ import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { ScoreBreakdown } from "./scorer.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "../../data/summaries.db");
@@ -117,6 +126,8 @@ export type Summary = {
   personaMatch: "strong" | "partial" | "none" | null;
   channelCategoriesMatched: number | null;
   topComments: TopComment[] | null;
+  score: number | null;
+  scoreBreakdown: ScoreBreakdown | null;
 };
 
 export type StoredVideo = VideoMeta &
@@ -204,6 +215,8 @@ export function getDb(): Database.Database {
     "ALTER TABLE videos ADD COLUMN topic_categories TEXT",
     "ALTER TABLE queue ADD COLUMN category_id TEXT",
     "ALTER TABLE queue ADD COLUMN topic_categories TEXT",
+    "ALTER TABLE videos ADD COLUMN score INTEGER",
+    "ALTER TABLE videos ADD COLUMN score_breakdown TEXT",
   ]) {
     try { _db.exec(stmt); } catch {}
   }
@@ -225,6 +238,7 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
        verdict, verdict_detail, top_comments, clickbait, clickbait_reason,
        persona_match, channel_categories_matched,
        category_id, topic_categories,
+       score, score_breakdown,
        summarized_at)
     VALUES
       (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary,
@@ -232,6 +246,7 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
        @verdict, @verdictDetail, @topComments, @clickbait, @clickbaitReason,
        @personaMatch, @channelCategoriesMatched,
        @categoryId, @topicCategories,
+       @score, @scoreBreakdown,
        @summarizedAt)
   `).run({
     id: video.id,
@@ -254,6 +269,8 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     channelCategoriesMatched: summary.channelCategoriesMatched ?? null,
     categoryId: video.categoryId ?? null,
     topicCategories: video.topicCategories ? JSON.stringify(video.topicCategories) : null,
+    score: summary.score ?? null,
+    scoreBreakdown: summary.scoreBreakdown ? JSON.stringify(summary.scoreBreakdown) : null,
     summarizedAt: new Date().toISOString(),
   });
 }
@@ -286,6 +303,8 @@ function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
     clickbaitReason: (r.clickbait_reason as string | null) ?? null,
     personaMatch: (r.persona_match as "strong" | "partial" | "none" | null) ?? null,
     channelCategoriesMatched: (r.channel_categories_matched as number | null) ?? null,
+    score: (r.score as number | null) ?? null,
+    scoreBreakdown: r.score_breakdown ? JSON.parse(r.score_breakdown as string) as ScoreBreakdown : null,
     summarizedAt: r.summarized_at as string,
   };
 }
@@ -299,6 +318,7 @@ const UPDATEABLE_COLUMNS = [
   "thumbnail_url", "one_liner", "short_summary", "worth_watching_reason",
   "verdict", "verdict_detail", "top_comments", "clickbait", "clickbait_reason",
   "persona_match", "channel_categories_matched",
+  "score", "score_breakdown",
 ] as const;
 
 type UpdateableColumn = typeof UPDATEABLE_COLUMNS[number];
