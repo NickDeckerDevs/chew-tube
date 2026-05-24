@@ -2,6 +2,18 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import type { Summary } from "./db.js";
 
+// This test exists specifically to catch broken native module installs.
+// If better-sqlite3 fails to compile (e.g. wrong Node version, missing build tools),
+// this is the first thing that fails — loudly and clearly — before anything else runs.
+describe("db — sqlite native module smoke test", () => {
+  it("better-sqlite3 loads and executes a query (catches broken native installs)", () => {
+    const db = new Database(":memory:");
+    const result = db.prepare("SELECT 1 AS val").get() as { val: number };
+    expect(result.val).toBe(1);
+    db.close();
+  });
+});
+
 // Import only the functions we need — we'll point them at an in-memory DB
 // by monkey-patching the module-level `_db` via getDb's lazy init.
 // Simpler approach: replicate the schema + helpers inline using a fresh in-memory DB per test.

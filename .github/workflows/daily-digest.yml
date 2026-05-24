@@ -1,3 +1,8 @@
+# 5/24/2026 - nick decker | run tests in ci
+# ADDED
+# - `npm test` step runs after install and before digest
+#   If better-sqlite3 or any other dependency is broken, tests fail immediately with a clear error
+#
 # 5/24/2026 - nick decker | downgrade to node 22 lts
 # CHANGED
 # - node-version: 24 → 22 LTS; better-sqlite3@9.6.0 has no prebuilt binary for Node 24 on Linux
@@ -41,6 +46,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: backend
+
+      - name: Run tests
+        run: npm test
         working-directory: backend
 
       - name: Run digest
