@@ -1,4 +1,12 @@
 /*
+5/23/2026 - nick decker | explicit persona match signals
+ADDED
+- `personaMatch: "strong" | "partial" | "none" | null` to `Summary` type
+- `channelCategoriesMatched: number | null` to `Summary` type
+- `persona_match TEXT` and `channel_categories_matched INTEGER` columns to videos table (idempotent migration)
+- `saveVideo` persists both fields
+- `mapRowToVideo` reads both fields back out
+
 5/23/2026 - nick decker | topic label catalogue
 ADDED
 - `topic_labels` table in `getDb()` — accumulates every YouTube topic label seen, with source URL, occurrence count, and first_seen timestamp
@@ -106,6 +114,8 @@ export type Summary = {
   verdictDetail: string | null;
   clickbait: boolean | null;
   clickbaitReason: string | null;
+  personaMatch: "strong" | "partial" | "none" | null;
+  channelCategoriesMatched: number | null;
   topComments: TopComment[] | null;
 };
 
@@ -188,6 +198,8 @@ export function getDb(): Database.Database {
     "ALTER TABLE videos ADD COLUMN top_comments TEXT",
     "ALTER TABLE videos ADD COLUMN clickbait INTEGER",
     "ALTER TABLE videos ADD COLUMN clickbait_reason TEXT",
+    "ALTER TABLE videos ADD COLUMN persona_match TEXT",
+    "ALTER TABLE videos ADD COLUMN channel_categories_matched INTEGER",
     "ALTER TABLE videos ADD COLUMN category_id TEXT",
     "ALTER TABLE videos ADD COLUMN topic_categories TEXT",
     "ALTER TABLE queue ADD COLUMN category_id TEXT",
@@ -211,12 +223,14 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
       (id, title, channel, published_at, description, thumbnail_url, one_liner, short_summary,
        takeaways, worth_watching, worth_watching_reason,
        verdict, verdict_detail, top_comments, clickbait, clickbait_reason,
+       persona_match, channel_categories_matched,
        category_id, topic_categories,
        summarized_at)
     VALUES
       (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary,
        @takeaways, @worthWatching, @worthWatchingReason,
        @verdict, @verdictDetail, @topComments, @clickbait, @clickbaitReason,
+       @personaMatch, @channelCategoriesMatched,
        @categoryId, @topicCategories,
        @summarizedAt)
   `).run({
@@ -236,6 +250,8 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     topComments: summary.topComments ? JSON.stringify(summary.topComments) : null,
     clickbait: summary.clickbait === null ? null : (summary.clickbait ? 1 : 0),
     clickbaitReason: summary.clickbaitReason ?? null,
+    personaMatch: summary.personaMatch ?? null,
+    channelCategoriesMatched: summary.channelCategoriesMatched ?? null,
     categoryId: video.categoryId ?? null,
     topicCategories: video.topicCategories ? JSON.stringify(video.topicCategories) : null,
     summarizedAt: new Date().toISOString(),
@@ -268,6 +284,8 @@ function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
     topComments: r.top_comments ? JSON.parse(r.top_comments as string) as TopComment[] : null,
     clickbait: r.clickbait === null || r.clickbait === undefined ? null : r.clickbait === 1,
     clickbaitReason: (r.clickbait_reason as string | null) ?? null,
+    personaMatch: (r.persona_match as "strong" | "partial" | "none" | null) ?? null,
+    channelCategoriesMatched: (r.channel_categories_matched as number | null) ?? null,
     summarizedAt: r.summarized_at as string,
   };
 }
@@ -280,6 +298,7 @@ const UPDATEABLE_COLUMNS = [
   "title", "channel", "description",
   "thumbnail_url", "one_liner", "short_summary", "worth_watching_reason",
   "verdict", "verdict_detail", "top_comments", "clickbait", "clickbait_reason",
+  "persona_match", "channel_categories_matched",
 ] as const;
 
 type UpdateableColumn = typeof UPDATEABLE_COLUMNS[number];

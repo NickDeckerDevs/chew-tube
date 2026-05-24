@@ -1,4 +1,10 @@
 /*
+5/23/2026 - nick decker | explicit persona match signals
+ADDED
+- `persona_match` field in tool schema — "strong" | "partial" | "none", evaluated independently of verdict
+- `channel_categories_matched` field in tool schema — integer 0–3, counts channel-derived persona category alignments
+- Both mapped in `callSummaryTool` and returned in `Summary`
+
 5/23/2026 - nick decker | category preference signal
 CHANGED
 - `buildSystemPrompt()` accepts optional `categoryScore` (1–5) and injects interest-level guidance
@@ -93,6 +99,18 @@ If skipping due to filler or repeated off-topic content, note it so the viewer c
         type: "string",
         description: "If clickbait is true: one sentence explaining the mismatch between title and content. Empty string if not clickbait.",
       },
+      persona_match: {
+        type: "string",
+        enum: ["strong", "partial", "none"],
+        description: `How well this video's content aligns with the viewer's STATED persona. Evaluate this independently of the verdict — a clickbait video about cooking is still "strong" for someone who loves cooking; a genuinely great video about an unrelated topic is still "none".
+- "strong": content directly and clearly serves the viewer's stated interests
+- "partial": tangentially relevant — adjacent to their interests but not a direct match
+- "none": no meaningful connection to the stated persona`,
+      },
+      channel_categories_matched: {
+        type: "number",
+        description: `How many of the viewer's revealed interest categories (from the channel-derived persona block) this video meaningfully aligns with. Count the thematic groups — cooking channels, gaming channels, etc. — that this video's content speaks to. Return 0, 1, 2, or 3 (cap at 3 for three or more).`,
+      },
     },
     required: [
       "one_liner",
@@ -104,6 +122,8 @@ If skipping due to filler or repeated off-topic content, note it so the viewer c
       "verdict_detail",
       "clickbait",
       "clickbait_reason",
+      "persona_match",
+      "channel_categories_matched",
     ],
   },
 };
@@ -196,10 +216,16 @@ async function callSummaryTool(
     verdict_detail: string;
     clickbait: boolean;
     clickbait_reason: string;
+    persona_match: "strong" | "partial" | "none";
+    channel_categories_matched: number;
   };
 
   const verdict = ["watch", "conditional", "skip"].includes(input.verdict)
     ? input.verdict
+    : null;
+
+  const personaMatch = ["strong", "partial", "none"].includes(input.persona_match)
+    ? input.persona_match
     : null;
 
   return {
@@ -214,7 +240,11 @@ async function callSummaryTool(
     verdictDetail: typeof input.verdict_detail === "string" ? input.verdict_detail : null,
     clickbait: typeof input.clickbait === "boolean" ? input.clickbait : null,
     clickbaitReason: typeof input.clickbait_reason === "string" ? input.clickbait_reason : null,
-    topComments: null, // populated separately by digest.ts after fetch
+    personaMatch,
+    channelCategoriesMatched: typeof input.channel_categories_matched === "number"
+      ? Math.min(3, Math.max(0, Math.round(input.channel_categories_matched)))
+      : null,
+    topComments: null,
   };
 }
 
