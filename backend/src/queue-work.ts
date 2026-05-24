@@ -119,7 +119,8 @@ async function main(): Promise<void> {
             publishedAt: item.publishedAt, description: item.description,
             thumbnailUrl: item.thumbnailUrl,
           },
-          summary
+          summary,
+          sourceType
         );
       }
 

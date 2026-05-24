@@ -1,4 +1,11 @@
 /*
+5/23/2026 - nick decker | source_type column on videos
+ADDED
+- `sourceType?: string` to `StoredVideo` type
+- `source_type TEXT` column to videos table (idempotent migration)
+- `saveVideo` accepts optional third `sourceType` param and persists it
+- `mapRowToVideo` reads `source_type` back out
+
 5/23/2026 - nick decker | upsertTopicLabels bug fix
 FIXED
 - `upsertTopicLabels` was double-counting: INSERT OR IGNORE (count=1) + always-UPDATE (count=2) on first insert
@@ -149,6 +156,7 @@ export type Summary = {
 export type StoredVideo = VideoMeta &
   Summary & {
     summarizedAt: string;
+    sourceType?: string;
   };
 
 let _db: Database.Database | null = null;
@@ -231,6 +239,7 @@ export function getDb(): Database.Database {
     "ALTER TABLE videos ADD COLUMN topic_categories TEXT",
     "ALTER TABLE queue ADD COLUMN category_id TEXT",
     "ALTER TABLE queue ADD COLUMN topic_categories TEXT",
+    "ALTER TABLE videos ADD COLUMN source_type TEXT",
     "ALTER TABLE videos ADD COLUMN score INTEGER",
     "ALTER TABLE videos ADD COLUMN score_raw INTEGER",
     "ALTER TABLE videos ADD COLUMN score_penalty INTEGER",
@@ -247,7 +256,7 @@ export function isAlreadySummarized(videoId: string): boolean {
   return row !== undefined;
 }
 
-export function saveVideo(video: VideoMeta, summary: Summary): void {
+export function saveVideo(video: VideoMeta, summary: Summary, sourceType?: string): void {
   const db = getDb();
   db.prepare(`
     INSERT OR IGNORE INTO videos
@@ -256,7 +265,7 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
        verdict, verdict_detail, top_comments, clickbait, clickbait_reason,
        persona_match, channel_categories_matched,
        category_id, topic_categories,
-       score, score_raw, score_penalty, score_breakdown,
+       source_type, score, score_raw, score_penalty, score_breakdown,
        summarized_at)
     VALUES
       (@id, @title, @channel, @publishedAt, @description, @thumbnailUrl, @oneLiner, @shortSummary,
@@ -264,7 +273,7 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
        @verdict, @verdictDetail, @topComments, @clickbait, @clickbaitReason,
        @personaMatch, @channelCategoriesMatched,
        @categoryId, @topicCategories,
-       @score, @scoreRaw, @scorePenalty, @scoreBreakdown,
+       @sourceType, @score, @scoreRaw, @scorePenalty, @scoreBreakdown,
        @summarizedAt)
   `).run({
     id: video.id,
@@ -287,6 +296,7 @@ export function saveVideo(video: VideoMeta, summary: Summary): void {
     channelCategoriesMatched: summary.channelCategoriesMatched ?? null,
     categoryId: video.categoryId ?? null,
     topicCategories: video.topicCategories ? JSON.stringify(video.topicCategories) : null,
+    sourceType: sourceType ?? null,
     score: summary.score ?? null,
     scoreRaw: summary.scoreRaw ?? null,
     scorePenalty: summary.scorePenalty ?? null,
@@ -323,6 +333,7 @@ function mapRowToVideo(r: Record<string, unknown>): StoredVideo {
     clickbaitReason: (r.clickbait_reason as string | null) ?? null,
     personaMatch: (r.persona_match as "strong" | "partial" | "none" | null) ?? null,
     channelCategoriesMatched: (r.channel_categories_matched as number | null) ?? null,
+    sourceType: (r.source_type as string | null) ?? undefined,
     score: (r.score as number | null) ?? null,
     scoreRaw: (r.score_raw as number | null) ?? null,
     scorePenalty: (r.score_penalty as number | null) ?? null,

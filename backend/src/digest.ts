@@ -115,7 +115,7 @@ async function processVideo(
   console.log(comments.length > 0 ? ` ${comments.length} fetched` : " none available");
 
   try {
-    saveVideo(video, summary);
+    saveVideo(video, summary, sourceType);
   } catch (err) {
     console.error(`  [db error] ${(err as Error).message}`);
     return null;

@@ -1,4 +1,8 @@
 /*
+5/23/2026 - nick decker | subject line includes time
+CHANGED
+- Subject line now includes time (e.g. "YouTube Digest — Friday, May 23, 2026 at 10:05 AM") so Gmail doesn't thread multiple sends into one conversation
+
 5/23/2026 - nick decker | integer score display
 CHANGED
 - `buildVideoSection` renders a score line below the verdict when `score !== null`
@@ -59,16 +63,18 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendDigestEmail(videos: StoredVideo[], to: string, subjectPrefix?: string, hideSkipped = false): Promise<void> {
   if (hideSkipped) videos = videos.filter((v) => v.verdict !== "skip" && v.worthWatching !== false);
-  const date = new Date().toLocaleDateString("en-US", {
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
   const subject = subjectPrefix
-    ? `[${subjectPrefix}] YouTube Digest — ${date}`
-    : `YouTube Digest — ${date}`;
+    ? `[${subjectPrefix}] YouTube Digest — ${date} at ${time}`
+    : `YouTube Digest — ${date} at ${time}`;
 
   await resend.emails.send({
     from: "Tube Chew <onboarding@resend.dev>",
