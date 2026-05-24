@@ -1,3 +1,9 @@
+# 5/24/2026 - nick decker | downgrade to node 22 lts
+# CHANGED
+# - node-version: 24 → 22 LTS; better-sqlite3@9.6.0 has no prebuilt binary for Node 24 on Linux
+#   and the node-gyp fallback fails; Node 22 LTS has prebuilt binaries and is supported until April 2027
+# - FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 kept — only affects runner internal actions, not our code
+#
 # 5/23/2026 - nick decker | node 24 migration
 # CHANGED
 # - Bumped node-version to 24 (Node 20 actions deprecated June 2nd 2026)
@@ -31,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
