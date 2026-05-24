@@ -213,15 +213,17 @@ export async function getChannelVideos(
 
 export async function searchVideos(
   query: string,
-  n = 5
+  n = 5,
+  publishedAfter?: string
 ): Promise<VideoMeta[]> {
   const youtube = getYouTube();
   const res = await youtube.search.list({
     part: ["snippet"],
     q: query,
-    order: "relevance",
+    order: "date",
     type: ["video"],
     maxResults: n,
+    ...(publishedAfter ? { publishedAfter } : {}),
   });
   return (res.data.items ?? []).map(searchItemToMeta);
 }

@@ -230,7 +230,7 @@ async function main(): Promise<void> {
 
   for (const topic of config.topics) {
     console.log(`\nTopic: "${topic}"`);
-    const videos = await searchVideos(topic, config.settings.videosPerTopic);
+    const videos = await searchVideos(topic, config.settings.videosPerTopic, CUTOFF);
     const fresh = videos.filter((v) => v.publishedAt >= CUTOFF);
     const freshIds = fresh.map((v) => v.id).filter(Boolean) as string[];
     const signals = await getVideoSignals(freshIds);
