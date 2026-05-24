@@ -355,7 +355,7 @@ See `algorithm.md` for full design. Items completed this session:
 - [x] Integer scoring Phase 1 — explicit persona match signals: `persona_match` ("strong"/"partial"/"none") and `channel_categories_matched` (0–3) added to Claude tool schema as independent fields; stored in DB as `persona_match` + `channel_categories_matched` columns
 - [x] Integer scoring Phase 2 — `scorer.ts`: `computeScore(signals, sourceType, categoryScore)` — baseline + stated persona + channel persona (both scaled by category multiplier) + clickbait penalty; returns `{ score, breakdown }`
 - [x] Integer scoring Phase 3 — `score` + `score_raw` + `score_penalty` + `score_breakdown` DB columns; digest.ts and queue-work.ts compute and store all fields after summarization
-- [ ] Integer scoring Phase 4 — surface both verdict and integer score in email
+- [x] Integer scoring Phase 4 — score line in digest email: net score, raw, penalty; penalty turns red when > 0; net score turns red when negative; hidden on old rows without score data
 - [x] Test suite — Vitest; 22 tests across `scorer.test.ts` (15 tests, pure math) and `db.test.ts` (7 tests, in-memory SQLite); caught real bug in `upsertTopicLabels` (double-count on first insert, fixed with `ON CONFLICT DO UPDATE`)
 - [ ] Music genre scoring path — own logic, no transcript required
 - [ ] Negative signals (second −10) — deferred until post-use observation
