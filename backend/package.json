@@ -6,6 +6,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "digest": "tsx src/digest.ts",
+    "digest:log": "tsx src/digest.ts --log",
     "test-email": "tsx src/digest.ts",
     "backfill": "tsx src/backfill.ts",
     "backfill-scores": "tsx src/backfill-scores.ts",

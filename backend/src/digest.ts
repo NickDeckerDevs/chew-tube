@@ -1,4 +1,20 @@
 /*
+5/24/2026 - nick decker | --log mode
+ADDED
+- `LOG` flag — activated by passing `--log` as a CLI argument
+- `log()` helper — writes only when LOG is set
+- `estTimestamp()` helper — formats a Date as "MM DD YYYY HH MM SS EST"
+- `processVideo` now returns `{ stored, gotTranscript }` so callers can track per-source stats
+- Per-source log block when LOG is set:
+    Starting run MM DD YYYY HH MM SS EST
+    [channel/topic label]
+      Queried: <label or topic string>
+      Last video published: <publishedAt of last item in result set>
+      Total returned: N
+      In last 24h: N
+      With transcripts: N
+      Added to email: N
+
 5/23/2026 - nick decker | split score into raw + penalty
 CHANGED
 - `processVideo()` destructures `scoreRaw` and `scorePenalty` from `computeScore` and patches both onto summary
@@ -57,10 +73,24 @@ import { getPlaylistVideos, searchVideos, resolveHandle, getTopComments, getVide
 import { getTranscript } from "./transcript.js";
 import { summarize } from "./summarizer.js";
 import type { SourceType } from "./summarizer.js";
-import { isAlreadySummarized, saveVideo, updateVideoColumn } from "./db.js";
+import { isAlreadySummarized, saveVideo } from "./db.js";
 import type { VideoMeta, StoredVideo } from "./db.js";
 import { sendDigestEmail } from "./mailer.js";
 import { computeScore } from "./scorer.js";
+
+const LOG = process.argv.includes("--log");
+function log(msg: string) { if (LOG) console.log(msg); }
+
+function estTimestamp(d: Date): string {
+  const s = d.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "2-digit", day: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  // "05/24/2026, 08:45:30" → "05 24 2026 08 45 30 EST"
+  return s.replace(/\//g, " ").replace(", ", " ").replace(/:/g, " ") + " EST";
+}
 
 type ChannelEntry = { id?: string; uploadsPlaylistId: string; handle?: string; label: string };
 type DigestConfig = {
@@ -68,6 +98,8 @@ type DigestConfig = {
   topics: string[];
   settings: { videosPerChannel: number; videosPerTopic: number; region: string; persona?: string; hideSkipped?: boolean; categoryPreferences?: Record<string, number> };
 };
+
+type ProcessResult = { stored: StoredVideo | null; gotTranscript: boolean };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const config = JSON.parse(
@@ -83,19 +115,19 @@ async function processVideo(
   sourceType: SourceType,
   channelLabel?: string,
   categoryScore?: number
-): Promise<StoredVideo | null> {
-  if (!video.id) return null;
+): Promise<ProcessResult> {
+  if (!video.id) return { stored: null, gotTranscript: false };
 
   if (isAlreadySummarized(video.id)) {
     console.log(`  [skip] already in DB: ${video.title.slice(0, 60)}`);
-    return null;
+    return { stored: null, gotTranscript: false };
   }
 
   process.stdout.write(`  Transcribing: ${video.title.slice(0, 60)}...`);
   const result = await getTranscript(video.id);
   if (!result.ok) {
     console.log(` no transcript (${result.reason})`);
-    return null;
+    return { stored: null, gotTranscript: false };
   }
   console.log(` ok (${result.estimatedTokens.toLocaleString()} tokens)`);
 
@@ -118,16 +150,17 @@ async function processVideo(
     saveVideo(video, summary, sourceType);
   } catch (err) {
     console.error(`  [db error] ${(err as Error).message}`);
-    return null;
+    return { stored: null, gotTranscript: true };
   }
 
-  return { ...video, ...summary, summarizedAt: new Date().toISOString() };
+  return { stored: { ...video, ...summary, summarizedAt: new Date().toISOString() }, gotTranscript: true };
 }
 
 async function main(): Promise<void> {
   const toEmail = process.env.DIGEST_TO_EMAIL;
   if (!toEmail) throw new Error("DIGEST_TO_EMAIL is not set");
 
+  log(`Starting run ${estTimestamp(new Date())}`);
   console.log(`Digest run — cutoff: ${CUTOFF}`);
   console.log(`Persona: ${persona}\n`);
   const newVideos: StoredVideo[] = [];
@@ -156,11 +189,21 @@ async function main(): Promise<void> {
     console.log(`  ${videos.length} fetched, ${fresh.length} in last 24h, ${fresh.length - watchable.length} shorts filtered`);
 
     const categoryPrefs = config.settings.categoryPreferences ?? {};
+    let transcripts = 0, added = 0;
     for (const video of watchable) {
       const categoryScore = video.categoryId ? categoryPrefs[video.categoryId] : undefined;
-      const stored = await processVideo(video, "channel", ch.label, categoryScore);
-      if (stored) newVideos.push(stored);
+      const { stored, gotTranscript } = await processVideo(video, "channel", ch.label, categoryScore);
+      if (gotTranscript) transcripts++;
+      if (stored) { newVideos.push(stored); added++; }
     }
+
+    const lastVideo = videos[videos.length - 1];
+    log(`  Queried: ${ch.label} uploads playlist`);
+    log(`  Last video published: ${lastVideo ? estTimestamp(new Date(lastVideo.publishedAt)) : "n/a"}`);
+    log(`  Total returned: ${videos.length}`);
+    log(`  In last 24h: ${fresh.length}`);
+    log(`  With transcripts: ${transcripts}`);
+    log(`  Added to email: ${added}`);
   }
 
   for (const topic of config.topics) {
@@ -173,11 +216,21 @@ async function main(): Promise<void> {
     console.log(`  ${videos.length} fetched, ${fresh.length} published in last 24h`);
 
     const categoryPrefs = config.settings.categoryPreferences ?? {};
+    let transcripts = 0, added = 0;
     for (const video of fresh) {
       const categoryScore = video.categoryId ? categoryPrefs[video.categoryId] : undefined;
-      const stored = await processVideo(video, "topic", undefined, categoryScore);
-      if (stored) newVideos.push(stored);
+      const { stored, gotTranscript } = await processVideo(video, "topic", undefined, categoryScore);
+      if (gotTranscript) transcripts++;
+      if (stored) { newVideos.push(stored); added++; }
     }
+
+    const lastVideo = videos[videos.length - 1];
+    log(`  Queried: "${topic}"`);
+    log(`  Last video published: ${lastVideo ? estTimestamp(new Date(lastVideo.publishedAt)) : "n/a"}`);
+    log(`  Total returned: ${videos.length}`);
+    log(`  In last 24h: ${fresh.length}`);
+    log(`  With transcripts: ${transcripts}`);
+    log(`  Added to email: ${added}`);
   }
 
   console.log(`\nDone. ${newVideos.length} new video(s) processed.`);
