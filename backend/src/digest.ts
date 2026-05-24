@@ -1,4 +1,10 @@
 /*
+5/24/2026 - nick decker | --log mode writes to file
+CHANGED
+- `log()` now writes to both stdout and a dated log file under `data/logs/`
+- Log file path: `data/logs/YYYY-MM-DD-HHMMSS.log` — new file per run
+- `data/logs/` directory created automatically if it doesn't exist
+
 5/24/2026 - nick decker | --log mode
 ADDED
 - `LOG` flag — activated by passing `--log` as a CLI argument
@@ -79,7 +85,13 @@ import { sendDigestEmail } from "./mailer.js";
 import { computeScore } from "./scorer.js";
 
 const LOG = process.argv.includes("--log");
-function log(msg: string) { if (LOG) console.log(msg); }
+let logFile: fs.WriteStream | null = null;
+
+function log(msg: string) {
+  if (!LOG) return;
+  console.log(msg);
+  logFile?.write(msg + "\n");
+}
 
 function estTimestamp(d: Date): string {
   const s = d.toLocaleString("en-US", {
@@ -160,6 +172,15 @@ async function main(): Promise<void> {
   const toEmail = process.env.DIGEST_TO_EMAIL;
   if (!toEmail) throw new Error("DIGEST_TO_EMAIL is not set");
 
+  if (LOG) {
+    const logsDir = path.join(__dirname, "../../data/logs");
+    fs.mkdirSync(logsDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const logPath = path.join(logsDir, `${stamp}.log`);
+    logFile = fs.createWriteStream(logPath, { flags: "w" });
+    console.log(`Log: ${logPath}`);
+  }
+
   log(`Starting run ${estTimestamp(new Date())}`);
   console.log(`Digest run — cutoff: ${CUTOFF}`);
   console.log(`Persona: ${persona}\n`);
@@ -198,6 +219,7 @@ async function main(): Promise<void> {
     }
 
     const lastVideo = videos[videos.length - 1];
+    log(`\nChannel: ${ch.label}`);
     log(`  Queried: ${ch.label} uploads playlist`);
     log(`  Last video published: ${lastVideo ? estTimestamp(new Date(lastVideo.publishedAt)) : "n/a"}`);
     log(`  Total returned: ${videos.length}`);
@@ -225,6 +247,7 @@ async function main(): Promise<void> {
     }
 
     const lastVideo = videos[videos.length - 1];
+    log(`\nTopic: "${topic}"`);
     log(`  Queried: "${topic}"`);
     log(`  Last video published: ${lastVideo ? estTimestamp(new Date(lastVideo.publishedAt)) : "n/a"}`);
     log(`  Total returned: ${videos.length}`);
