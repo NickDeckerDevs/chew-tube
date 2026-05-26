@@ -1,4 +1,15 @@
 <!--
+5/25/2026 - nick decker | Supabase migration decision + product vision
+ADDED
+- Product Vision section (long-term content platform direction)
+- Phase 2.5 — Database Migration section (full migration scope)
+CHANGED
+- Storage architecture decision updated: SQLite → Supabase
+- Phase 3 design notes updated: SQLite/better-sqlite3 → Supabase/Drizzle, auth flow added, semantic search added
+- "Remaining Before Phase 3" replaced with actionable checklist (algorithm items + migration steps)
+- File tree updated to note SQLite and db.ts are being replaced
+- Status line updated
+
 5/23/2026 - nick decker | integer scorer phase 1
 CHANGED
 - Algorithm Development checklist: integer scoring Phase 1 marked complete
@@ -33,13 +44,29 @@ CHANGED
 # YouTube Summary — Project Plan
 
 **Started:** 2026-05-22
-**Status:** Active algorithm development — Phase 2 complete, parallel integer scoring system + music genre path in design, Phase 3 frontend next
+**Status:** Active algorithm development — Phase 2 complete, Supabase migration planned (Phase 2.5), Phase 3 frontend after migration
 
 ---
 
 ## The Big Hairy Audacious Goal
 
 A daily digest system that monitors YouTube channels and topics I care about, extracts video transcripts, summarizes them with AI, and delivers the highlights to my inbox. Instead of watching 10 videos, I get a daily email telling me which ones are worth watching and why — with the key takeaways from the ones that aren't.
+
+---
+
+## Product Vision
+
+This is being built as a personal tool first, tuned between the developer and a small group of friends, then launched as a product.
+
+**Long-term direction:** A better way to consume content — not just YouTube. The roadmap includes:
+- News integration (RSS, newsletters, major outlets) — same summarize/score/filter pipeline applied to articles
+- Paywall detection and filtering — surface only freely accessible content
+- Unified feed across sources — YouTube + news + podcasts in one ranked digest
+- Personalized discovery — not just email, but a browsable feed (think Google News but with real curation and no SEO garbage)
+- Semantic search across all content via pgvector — "what happened with X this week" as a query, not a keyword filter
+- Content deduplication — detect when 40 YouTube shorts and 20 news articles all cover the same story; surface one representative item
+
+The database and auth architecture decisions are made with this trajectory in mind, not just the current feature set.
 
 ---
 
@@ -51,7 +78,10 @@ A TypeScript backend that fetches YouTube videos, pulls transcripts, summarizes 
 ### Phase 2 — Automation & Personalization ✅ COMPLETE
 Daily automated runs pulling from channels and topics I actually care about. Includes email delivery, scheduling via GitHub Actions, and all post-launch email polish.
 
-### Phase 3 — Frontend (next)
+### Phase 2.5 — Database Migration (next)
+Migrate from SQLite to Supabase (Postgres + Auth + pgvector). Must happen before Phase 3. See the Phase 2.5 section below for full scope.
+
+### Phase 3 — Frontend (after Phase 2.5)
 A web UI to manage channels/topics and browse past summaries. Email is already working — this phase is purely the frontend.
 
 ---
@@ -200,14 +230,30 @@ Music videos (detected by `topicCategories` containing a music genre label) skip
 
 ---
 
-### Storage: SQLite via `better-sqlite3`
-**Decision:** SQLite with the synchronous `better-sqlite3` driver.
+### Storage: Supabase (Postgres + Auth + pgvector)
+**Decision:** Migrate from SQLite to Supabase. Decided 2026-05-25.
 
-**Why:** Zero setup. One file. Perfect for a personal tool. The synchronous API matches the naturally sequential pipeline (fetch → transcribe → summarize → save).
+**Why SQLite is being replaced:**
+- Flat file — not appropriate for a product
+- No persistence in CI — every GitHub Actions run starts with an empty DB, breaking deduplication
+- No auth — can't build a multi-user frontend on top of it
+- No vector search — can't do semantic content discovery without pgvector
 
-**Idempotency:** `INSERT OR IGNORE` on the video ID. Re-running the same command never re-summarizes videos already in the DB.
+**Why Supabase:**
+- Real Postgres underneath — full SQL, relational, battle-tested
+- Auth is built in (email, Google, GitHub, magic links, MFA) — tied to data via Row Level Security at the DB layer, not the application layer
+- pgvector built in — embeddings can be added to the `videos` table so summaries become semantically searchable. This is the feature that turns a digest into a discovery engine
+- Realtime subscriptions — new content can push to browser without polling
+- Excellent Next.js integration via `@supabase/ssr`
+- Open source — self-hostable if needed
+- Free tier: 500MB DB, 50k MAU, 1GB storage. Daily cron keeps DB active (no inactivity pause risk)
+- $25/mo Pro tier when ready to scale
 
-**Schema:** Designed to carry forward to Phase 3 without migration.
+**Current status:** SQLite (`backend/src/db.ts` via `better-sqlite3`) is still in place. Migration is Phase 2.5.
+
+**pgvector decision:** Enable from day one. Add empty `embedding vector(1536)` column to the `videos` table at migration time. Populate embeddings as a background job later. Avoids a schema migration when semantic search is built.
+
+**Idempotency in Postgres:** `ON CONFLICT (id) DO NOTHING` replaces SQLite's `INSERT OR IGNORE`.
 
 ---
 
@@ -219,9 +265,83 @@ Music videos (detected by `topicCategories` containing a music genre label) skip
 ---
 
 ### Scheduling: GitHub Actions
-**Decision:** GitHub Actions cron workflow (`0 12 * * *` — 7am CT).
+**Decision:** GitHub Actions cron workflow (`0 10 * * *` — 5am EST / 6am EDT).
 
 **Why:** Machine doesn't need to be on. Free for public repos. `workflow_dispatch` allows manual runs from the GitHub UI without touching the terminal.
+
+**Known issue:** GitHub's scheduler can delay runs by up to several hours under load. With a 24h rolling cutoff, a 3.5h delay means content published before the delayed run time falls outside the window and gets missed. This is resolved by the Supabase migration — a persistent cloud DB allows the cutoff to be based on the last actual run timestamp rather than a fixed 24h window.
+
+---
+
+## Phase 2.5 — Database Migration
+
+Migrate from SQLite to Supabase. Must happen before Phase 3 so the frontend starts on the right foundation.
+
+**Why before frontend:**
+- Frontend auth requires Supabase Auth
+- Next.js API routes will read from Postgres, not SQLite
+- CI deduplication only works with a persistent DB — Supabase solves this without workarounds
+- pgvector needs to be in place before embeddings work begins
+
+**Migration scope:**
+
+| Item | Current (SQLite) | Target (Postgres) |
+|------|-----------------|-------------------|
+| Client | `better-sqlite3` (sync) | `drizzle-orm` + `postgres` (async) |
+| All `db.ts` functions | Synchronous | Must become `async` — pervasive change |
+| Booleans | Stored as `1`/`0` INT | `BOOLEAN` columns, pass `true`/`false` |
+| JSON fields | `JSON.stringify()` to TEXT | `JSONB` columns, pass plain objects |
+| `INSERT OR IGNORE` | SQLite syntax | `ON CONFLICT (id) DO NOTHING` |
+| `datetime('now')` | SQLite function | `NOW()` |
+| Transactions | Sync callback | Async callback |
+| Dequeue pattern | SELECT then UPDATE | `FOR UPDATE SKIP LOCKED` (concurrent-safe) |
+| Parameterized queries | `?` / `@name` | Drizzle handles abstraction |
+| Migrations | `ALTER TABLE` in JS | SQL files via `drizzle-kit` |
+
+**JSON columns to convert to JSONB:** `takeaways`, `top_comments`, `topic_categories`, `score_breakdown`
+
+**New columns to add at migration:**
+- `embedding vector(1536)` — pgvector, initially empty, populated later as a background job
+
+**New dependencies:**
+```bash
+npm install drizzle-orm postgres @supabase/supabase-js
+npm install -D drizzle-kit
+```
+
+**New environment variables:**
+```
+SUPABASE_URL=https://[project-ref].supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...    # backend scripts only — bypasses RLS
+NEXT_PUBLIC_SUPABASE_URL=...         # Next.js frontend (safe to expose)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # Next.js frontend (safe to expose, RLS enforces access)
+DATABASE_URL=postgresql://...        # Drizzle runtime queries (session pooler, port 5432)
+DATABASE_URL_DIRECT=postgresql://... # Drizzle migrations only (direct connection)
+```
+
+**Supabase connection modes:**
+- Port 5432 session pooler — backend cron scripts (long-lived Node process)
+- Port 6543 transaction pooler — Next.js API routes / serverless (session mode on 6543 deprecated 2025-02-28)
+- Direct connection — `drizzle-kit` migrations only
+
+**Auth design:**
+Supabase Auth handles email, Google OAuth, magic links, MFA. Row Level Security (RLS) ties auth to data at the DB layer. Beta launch (developer + friends): email auth. Before public launch: add Google OAuth.
+
+Next.js middleware (`middleware.ts`) refreshes auth tokens on every request via `@supabase/ssr`. Must use `getUser()` not `getSession()` server-side — `getSession()` does not re-validate the JWT against Supabase's servers and can be spoofed.
+
+**Files that change:**
+- `backend/src/db.ts` — full rewrite (Drizzle schema + async functions)
+- `backend/src/digest.ts` — all db calls become `await`
+- `backend/src/queue-work.ts` — all db calls become `await`
+- `backend/src/queue-fill.ts` — all db calls become `await`
+- `backend/src/index.ts` — all db calls become `await`
+- `backend/src/summarizer.ts` — db calls become `await`
+- `backend/src/mailer.ts` — no change (no direct DB access)
+- `backend/src/scorer.ts` — no change (pure math, no DB)
+- `backend/.env.example` — add Supabase vars
+- `.github/workflows/daily-digest.yml` — add Supabase secrets; replace 24h cutoff with last-run timestamp from DB
+- `backend/package.json` — add drizzle-orm, postgres, @supabase/supabase-js; remove better-sqlite3
+- `backend/src/db.test.ts` — in-memory SQLite tests need rethinking (test Supabase project or Drizzle mock)
 
 ---
 
@@ -233,7 +353,7 @@ youtube-summary/
 ├── algorithm.md                ← living algorithm design doc (verdicts, scoring, music path)
 ├── README.md
 ├── data/
-│   ├── summaries.db            ← SQLite database (gitignored)
+│   ├── summaries.db            ← SQLite database (gitignored) — to be replaced by Supabase (Phase 2.5)
 │   ├── index.html              ← algo-test report viewer (served via `npm run report`)
 │   └── results/                ← dated JSON results from algo-test runs + manifest.json
 ├── .github/
@@ -247,7 +367,7 @@ youtube-summary/
     ├── persona-profile.json    ← generated by build-persona; channel + category summaries
     └── src/
         ├── utils.ts            ← shared: decodeHtml, HAIKU_MODEL, getAnthropicClient, runScript
-        ├── db.ts               ← SQLite: schema, CRUD, topic_labels table, upsertTopicLabels
+        ├── db.ts               ← SQLite: schema, CRUD, topic_labels table — to be replaced by Drizzle + Supabase (Phase 2.5)
         ├── youtube.ts          ← YouTube API: all fetch modes, getVideoSignals, getTrending w/ topicDetails
         ├── transcript.ts       ← transcript fetch, token estimation, map-reduce chunking
         ├── summarizer.ts       ← Claude Haiku: 3-tier verdict, persona injection, clickbait detection
@@ -365,16 +485,33 @@ See `algorithm.md` for full design. Items completed this session:
 
 ## Remaining Before Phase 3
 
-- [ ] **GitHub Actions secrets** — add to repo at Settings → Secrets and variables → Actions:
+### Algorithm items (finish on SQLite before migration)
+- [ ] Music genre scoring path — own logic, no transcript required (see `algorithm.md`)
+- [ ] Integer score thresholds — TBD after observing parallel run data
+- [ ] Negative signals (second −10) — deferred until post-use observation
 
-| Secret | Value |
-|--------|-------|
-| `YOUTUBE_API_KEY` | from Google Cloud Console |
-| `ANTHROPIC_API_KEY` | from Anthropic Console |
-| `RESEND_API_KEY` | from Resend dashboard |
-| `DIGEST_TO_EMAIL` | nickdeckerdevs@gmail.com |
+### Phase 2.5 — Supabase migration (do before frontend)
+See the Phase 2.5 section above for full scope.
 
-Once secrets are set, the digest will fire automatically at 7am CT daily. Manual trigger available from the GitHub Actions tab.
+- [ ] Create Supabase project
+- [ ] Enable pgvector extension in Supabase dashboard (Database → Extensions → vector)
+- [ ] Write Drizzle schema (`backend/src/schema.ts`) mapping current SQLite tables to Postgres
+- [ ] Run initial migration via `drizzle-kit` — includes `embedding vector(1536)` column
+- [ ] Migrate existing data from `data/summaries.db` to Supabase (one-shot script)
+- [ ] Rewrite `backend/src/db.ts` — Drizzle ORM, async, JSONB, correct SQL syntax
+- [ ] Update all callers to `await` db functions
+- [ ] Update `.env.example` and GitHub Actions secrets
+- [ ] Update CI workflow — add Supabase env vars; replace 24h cutoff with last-run timestamp from DB
+- [ ] Update `db.test.ts` — replace in-memory SQLite tests (test Supabase project or Drizzle mock)
+- [ ] Verify digest pipeline end-to-end against Supabase
+
+### GitHub Actions secrets
+✅ Already set: `YOUTUBE_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `DIGEST_TO_EMAIL`, `DIGEST_LOG_EMAIL`
+
+Pending (add after Supabase project created):
+- [ ] `SUPABASE_URL`
+- [ ] `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] `DATABASE_URL` (session pooler)
 
 ---
 
@@ -430,6 +567,7 @@ Any function over 15 lines flagged for review. Not all need splitting — some a
 - Alternative: SvelteKit (lighter) if simplicity matters more than ecosystem.
 
 **UI features to build:**
+- **Auth** — sign in / sign up (email + Google OAuth). Multi-user from day one — each user has their own channels, topics, and preferences
 - **Channel manager** — add/remove channels by URL or ID, toggle enabled/disabled
 - **Topic/keyword manager** — manage search queries that run alongside channels
 - **Summary browser** — paginated, filterable list of past summaries with expand + video link
@@ -438,7 +576,15 @@ Any function over 15 lines flagged for review. Not all need splitting — some a
 - **Category preference picker** — 1–5 interest sliders for YouTube's 15 content categories (taxonomy sourced from `topic_labels` table)
 - **Music preference manager** — genre picker (from accumulated `topic_labels`), sub-genre multi-select, artist list
 - **Algorithm score review** — view both Claude verdict and integer score side-by-side per video, flag disagreements to feed back into scoring calibration
+- **Semantic search** — "find summaries about X" powered by pgvector embeddings on the `videos` table
 
-**API layer:** Next.js API routes reading from the same SQLite DB via `better-sqlite3`. Schema already carries all needed fields.
+**API layer:** Next.js API routes reading from Supabase Postgres via Drizzle ORM. Auth via Supabase Auth + `@supabase/ssr` middleware.
+
+**New frontend dependencies:**
+```bash
+npm install @supabase/supabase-js @supabase/ssr
+```
+
+**Auth flow:** Supabase handles sign-up/sign-in. `middleware.ts` runs on every request, validates the JWT, and refreshes it if expired. Protected routes redirect unauthenticated users to `/login`. Server Components use `createServerClient`; Client Components use `createBrowserClient`. Never call `getSession()` server-side — use `getUser()`.
 
 **Email link update (Phase 3):** Video title links in the email currently point to YouTube. Once the frontend exists, these should point to the Tube Chew summary page for that video. Placeholder noted in `mailer.ts`.
